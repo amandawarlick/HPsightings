@@ -1,0 +1,518 @@
+---
+title: "Harbor Porpoise Sightings and Strandings"
+author: "Amanda Warlick"
+output: 
+  word_document:
+  reference_docx: mytemplate.docx
+---
+
+```{r include = FALSE}
+knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE, results = 'asis', fig.width = 5.5, fig.height = 5)
+```
+
+```{r load packages, include = FALSE, results = 'hide'}
+
+library(devtools)
+library(tidyr)
+library(ggmap)
+library(data.table)
+library(ggfortify)
+library(dplyr)
+library(ggplot2)
+library(cowplot)
+library(scales)
+library(captioner)
+library(knitr)
+library(reshape2)
+library(stringr)
+library(magrittr)
+library(stats) #kruskal.test
+library(PMCMR) # posthoc.kruskal.nemenyi.test https://cran.r-project.org/web/packages/PMCMR/vignettes/PMCMR.pdf
+library(pgirmess) #kruskalmc https://cran.r-project.org/web/packages/pgirmess/pgirmess.pdf 
+
+#setwd("~/Documents/R/HarborPorpoiseSightings")
+
+# Define Plot Theme
+fig_theme <- function(...) {
+  theme(
+    #text = element_text(size = 11),
+    axis.text.x = element_text(angle = 90, hjust = 1, vjust = 0.5, color = "black", size = 10),
+    axis.text.y = element_text(vjust = 0.5, color = "black", size = 10), 
+    axis.title = element_text(size = 10),
+    axis.line.y = element_line(colour = "black"), 
+    axis.line.x = element_line(colour = "black"), 
+    plot.background = element_rect(), 
+    panel.background = element_blank(), 
+    panel.grid = element_blank(), 
+    legend.title = element_blank(),
+    legend.key = element_blank(),
+    legend.text = element_text(size = 5.5),
+    ...)
+}
+
+pubfigure_simple_theme <- function(...) {
+  theme(
+    axis.text.x = element_blank(),
+    axis.text.y = element_text(vjust = 0.5, color = "black", size = 10), 
+    axis.title.x = element_blank(),
+    axis.line.y = element_line(colour = "black"), 
+    axis.line.x = element_line(colour = "black"), 
+    plot.background = element_rect(), 
+    panel.background = element_blank(), 
+    panel.grid = element_blank(),
+    legend.title = element_blank(),
+    legend.key = element_blank(),
+    legend.text = element_text(size = 5.5),
+    ...)
+}
+
+color6 <- c("#999aa7", "#f6b61c", "#4aaaa5", "#3b98ee", "#3f1d58", "#302f49", "#e45f56")
+color4 <- c("#a3d39c", "#e45f56", "#f6b61c", "#6ea3ec")
+color1 <- c("#a3d39c", "#6ea3ec")
+color2 <- c("#4aaaa5", "#e45f56") 
+
+case <- function(x)
+  paste0(toupper(substr(x, 1, 1)), tolower(substring(x, 2)))
+
+# figs <- captioner(prefix="Figure")
+# tbls <- captioner(prefix="Table")
+
+# figs("name") <-- "Figure  1: Caption."
+# figs("name",display="cite") <-- "Figure  1"
+# figs("name",display="num") <-- "1"
+
+```
+
+```{r load and clean data, include = FALSE}
+
+#load csv derived from manual input of lat/longs from grid in arcGIS
+input_lat_long <- read.csv("QuadLatLong.csv", header = TRUE, na.strings = "", stringsAsFactors = FALSE)
+
+#sightings/strandings data
+sightings_data <- read.csv("HPData.csv", header = TRUE, na.strings = "", stringsAsFactors = FALSE) %>%
+  select(-Count)
+sightings_data$Count_clean <- gsub("\\~", "", sightings_data$Count_clean) #get symbols out of count column
+sightings_data$Count_clean <- gsub("\\+", "", sightings_data$Count_clean)
+sightings_data$Count <- as.numeric(sightings_data$Count_clean)
+sightings_data$Count <- round(sightings_data$Count, 0)
+
+#Existing lat/long by quadrant to merge back and fill with the empty ones where possible
+mean_lat_long <- sightings_data %>%
+  filter(ActualLatitude > 0) %>%
+  group_by(Quadrant) %>%
+  summarize(mean_long = mean(ActualLongitude), mean_lat = mean(ActualLatitude)) 
+
+sightings_data <- sightings_data %>%
+  select(-Count_clean) %>%
+  merge(mean_lat_long, by = 'Quadrant', all = T) %>%
+  transform(Reliable_Source = ifelse(Source == 'Reliable', 'Reliable', 'Other')) %>%
+  transform(Record_Type = ifelse(is.na(Stranded) | Stranded == 'Yes', 'Stranding', ifelse(Stranded == 'No', 'Sighting', 'Other'))) %>%
+  transform(Season = ifelse(Month == 12 | Month < 3, 'Winter', 
+                     ifelse(Month < 6 & Month > 2, 'Spring', 
+                     ifelse(Month < 9 & Month > 5, 'Summer', 'Fall')))) %>%
+  transform(Group_size = ifelse(Count < 5, '1-5', 
+            ifelse(Count > 5 & Count < 20, '5-20',
+            ifelse(Count > 20 & Count < 50, '20-50',
+            ifelse(Count > 50 & Count < 100, '50-100',
+            ifelse(Count > 100 & Count < 200, '100-200', '200+')))))) %>%
+  merge(input_lat_long, by = 'Quadrant', all = T)
+sightings_data$Group_size <- factor(sightings_data$Group_size, levels = c('1-5', '5-20', '20-50', '50-100', '100-200', '200+'))
+sightings_data$Season = factor(sightings_data$Season, levels = c('Spring', 'Summer', 'Fall', 'Winter'))
+
+#Use mean where lat/longs that are missing or 0.00
+sightings_data$lat_applied <- ifelse(is.na(sightings_data$ActualLatitude) | 
+                                    sightings_data$ActualLatitude < 1, 
+                              sightings_data$mean_lat, sightings_data$ActualLatitude)
+sightings_data$long_applied <- ifelse(is.na(sightings_data$ActualLongitude) | 
+                                    sightings_data$ActualLongitude < 1, 
+                              sightings_data$mean_long, sightings_data$ActualLongitude)
+#use manual input where lat/longs are still missing
+sightings_data$lat_all <- ifelse(is.na(sightings_data$lat_applied), sightings_data$Arc_Lat, sightings_data$lat_applied)
+sightings_data$long_all <- ifelse(is.na(sightings_data$long_applied), sightings_data$Arc_Long, sightings_data$long_applied)
+
+HP_data <- sightings_data %>%
+  select(-c(ActualLatitude, ActualLongitude, mean_lat, mean_long, lat_applied, long_applied, Direction, Location2, Pod, LikelyPod, ReportingParty, Stranded))
+
+#create column where there is only one unique lat/long per quadrant for maps
+mean_lat_long_final <- HP_data %>%
+  #filter(lat_all > 0) %>%
+  group_by(Quadrant) %>%
+  summarize(mean_long = mean(long_all), mean_lat = mean(lat_all)) 
+
+#merge back with main dataframe
+HP_data <- HP_data %>% merge(mean_lat_long_final, by = 'Quadrant')
+
+```
+
+```{r basic annual monthly seasonal figures, include = FALSE}
+
+numberperyear <- HP_data %>%
+  group_by(Year) %>%
+  summarize(Count = n_distinct(RecordID))
+
+numberpermonth <- HP_data %>%
+  group_by(Year, Month) %>%
+  summarize(Count = n_distinct(RecordID))
+
+numberperseason <- HP_data %>%
+  group_by(Year, Season) %>%
+  summarize(Count = n_distinct(RecordID)) 
+
+#counts per year
+sights_yr <- ggplot(data = numberperyear, aes(x = Year, y = Count)) + 
+  geom_line() +
+  geom_smooth( method = "loess", se = FALSE, col = 'black', size = 0.8, linetype = 3) +
+  xlab("") + ylab("Annual Sightings") +
+  scale_y_continuous(labels = comma) +
+  scale_x_continuous(breaks = c(1975, 1980, 1985, 1990, 1995, 2000, 2005, 2010, 2015)) +
+  fig_theme() 
+
+#Line plot for sum of monthly counts
+sights_month_tot <- ggplot(data = numberpermonth %>% group_by(Month) %>% summarize(Count = sum(Count)), 
+                       aes(x = factor(Month), y = Count)) + 
+  geom_bar(stat = 'identity') +
+  xlab("") + ylab("Total Monthly Sightings") +
+  scale_y_continuous(labels = comma) +
+  fig_theme() 
+
+#Bar plot for average monthly counts
+sights_month_mean <- ggplot(data = numberpermonth, 
+                       aes(x = factor(Month), y = Count)) + 
+  geom_boxplot() +
+  xlab("") + ylab("Mean Monthly Sightings") +
+  scale_y_continuous(labels = comma) +
+  fig_theme() 
+
+#Line plot for sum of seasonal counts
+sights_seas_tot <- ggplot(data = numberperseason %>% group_by(Season) %>% summarize(Count = sum(Count)), 
+                       aes(x = factor(Season), y = Count)) + 
+  geom_bar(stat = 'identity') +
+  xlab("") + ylab("Total Seasonal Sightings") +
+  scale_y_continuous(labels = comma) +
+  fig_theme() 
+
+#Bar plot for average seasonal counts
+sights_seas_mean <- ggplot(data = numberperseason, 
+                       aes(x = factor(Season), y = Count)) + 
+  geom_boxplot() +
+  xlab("") + ylab("Mean Seasonal Sightings") +
+  scale_y_continuous(labels = comma) +
+  fig_theme() 
+
+```
+
+```{r, include = FALSE}
+
+#timeseries and seasonal by source
+
+sights_yr_source <- ggplot(data = HP_data %>% group_by(Year, Reliable_Source) %>% summarize(Count = n_distinct(RecordID)), aes(x = Year, y = Count, group = Reliable_Source, color = Reliable_Source)) + 
+  geom_line(size = 0.9) +
+  #geom_smooth(method = "loess", se = FALSE, col = 'black', size = 0.8, linetype = 3) +
+  xlab("") + ylab("Annual Sightings by Source") +
+  scale_y_continuous(labels = comma) +
+  scale_x_continuous(breaks = c(1975, 1980, 1985, 1990, 1995, 2000, 2005, 2010, 2015)) +
+  fig_theme(legend.position = 'top') + 
+  scale_color_manual(values = color1)
+
+sights_mo_source <- ggplot(data = HP_data %>% group_by(Month, Reliable_Source) %>% summarize(Count = n_distinct(RecordID)), aes(x = factor(Month), y = Count, 
+                          group = Reliable_Source, fill = Reliable_Source)) + 
+  geom_bar(stat = 'identity', position = 'dodge') +
+  #geom_smooth(method = "loess", se = FALSE, col = 'black', size = 0.8, linetype = 3) +
+  xlab("") + ylab("Monthly Sightings by Source") +
+  scale_y_continuous(labels = comma) +
+  fig_theme(legend.position = 'top') + 
+  scale_fill_manual(values = color1)
+
+sights_seas_source <- ggplot(data = HP_data %>% group_by(Season, Reliable_Source) %>% summarize(Count = n_distinct(RecordID)), aes(x = factor(Season), y = Count, 
+                          group = Reliable_Source, fill = Reliable_Source)) + 
+  geom_bar(stat = 'identity', position = 'dodge') +
+  #geom_smooth(method = "loess", se = FALSE, col = 'black', size = 0.8, linetype = 3) +
+  xlab("") + ylab("Seasonal Sightings by Source") +
+  scale_y_continuous(labels = comma) +
+  fig_theme(legend.position = 'top') + 
+  scale_fill_manual(values = color1)
+```
+
+```{r figures by record type, include = FALSE}
+
+#timeseries and seasonal by record type
+
+sights_yr_type <- ggplot(data = HP_data %>% group_by(Year, Record_Type) %>% summarize(Count = n_distinct(RecordID)), aes(x = Year, y = Count, group = Record_Type, color = Record_Type)) + 
+  geom_line(size = 0.9) +
+  #geom_smooth(method = "loess", se = FALSE, col = 'black', size = 0.8, linetype = 3) +
+  xlab("") + ylab("Annual Sightings by Source") +
+  scale_y_continuous(labels = comma) +
+  scale_x_continuous(breaks = c(1975, 1980, 1985, 1990, 1995, 2000, 2005, 2010, 2015)) +
+  fig_theme(legend.position = 'top') + 
+  scale_color_manual(values = color2)
+
+sights_mo_type <- ggplot(data = HP_data %>% group_by(Month, Record_Type) %>% summarize(Count = n_distinct(RecordID)), aes(x = factor(Month), y = Count, 
+                          group = Record_Type, fill = Record_Type)) + 
+  geom_bar(stat = 'identity', position = 'dodge') +
+  #geom_smooth(method = "loess", se = FALSE, col = 'black', size = 0.8, linetype = 3) +
+  xlab("") + ylab("Monthly Sightings by Source") +
+  scale_y_continuous(labels = comma) +
+  fig_theme(legend.position = 'top') + 
+  scale_fill_manual(values = color2)
+
+sights_seas_type <- ggplot(data = HP_data %>% group_by(Season, Record_Type) %>% summarize(Count = n_distinct(RecordID)), aes(x = factor(Season), y = Count, 
+                          group = Record_Type, fill = Record_Type)) + 
+  geom_bar(stat = 'identity', position = 'dodge') +
+  #geom_smooth(method = "loess", se = FALSE, col = 'black', size = 0.8, linetype = 3) +
+  xlab("") + ylab("Seasonal Sightings by Source") +
+  scale_y_continuous(labels = comma) +
+  fig_theme(legend.position = 'top') + 
+  scale_fill_manual(values = color2)
+```
+
+```{r mapping, include = FALSE}
+
+#########MAPS#######
+WAbox <- c(-124.8, 46.95, -121.7, 49.3)
+pugetbox <- c(-124.1, 47.1, -122.1, 49.8)
+
+###all records, overlapping jittered dots
+allsights <- ggmap(get_map(location = WAbox, source = "google", maptype = "terrain")) +
+   geom_jitter(data = HP_data, aes(x = long_all, y = lat_all), width = .1, height = .1, size = .7, alpha = .5, color = 'grey50') +
+scale_alpha(range = c(0, 0.3), guide = FALSE) +
+  xlab("") + ylab("") +
+  theme(
+    axis.line = element_blank(),
+    axis.ticks = element_blank(),
+    axis.text = element_blank(),
+    strip.text = element_text(size = 10),
+    strip.background = element_blank(),
+    panel.border = element_rect(colour = "black", fill = NA, size = 5)) 
+
+###all records, summed by quadrant color = more records
+quadrant_counts <- HP_data %>%
+  group_by(Quadrant, mean_lat, mean_long) %>%
+  summarize(Count = n_distinct(RecordID))
+
+#all quadtrants
+allsights_quadsize <- ggmap(get_map(location = WAbox, source = "google", maptype = "terrain")) +
+   geom_point(data = quadrant_counts, aes(x = mean_long, y = mean_lat, color = Count, alpha = .9)) +
+scale_alpha(range = c(0.6, 0.9), guide = FALSE) +
+  xlab("") + ylab("") +
+  theme(legend.text = element_text(size = 10), 
+        legend.title = element_text(size = 11),
+    axis.line = element_blank(),
+    axis.ticks = element_blank(),
+    axis.text = element_blank(),
+    strip.text = element_text(size = 10),
+    strip.background = element_blank(),
+    panel.border = element_rect(colour = "black", fill = NA, size = 5)) + 
+  scale_color_continuous(trans = 'reverse')
+
+#puget sound zoom
+allsights_quadsize_puget <- ggmap(get_map(location = pugetbox, source = "google", maptype = "terrain")) +
+   geom_point(data = quadrant_counts, aes(x = mean_long, y = mean_lat, color = Count, alpha = .9)) +
+scale_alpha(range = c(0.6, 0.9), guide = FALSE) +
+  xlab("") + ylab("") +
+  theme(legend.text = element_text(size = 10), 
+        legend.title = element_text(size = 11),
+    axis.line = element_blank(),
+    axis.ticks = element_blank(),
+    axis.text = element_blank(),
+    strip.text = element_text(size = 10),
+    strip.background = element_blank(),
+    panel.border = element_rect(colour = "black", fill = NA, size = 5)) + 
+  scale_color_continuous(trans = 'reverse')
+
+```
+
+```{r maps by group sighting size, include = FALSE}
+
+###all records colors by group sighting size
+allsights_group_size <- ggmap(get_map(location = WAbox, source = "google", maptype = "terrain")) +
+   geom_jitter(data = HP_data %>% filter(!is.na(Group_size)), 
+               aes(x = mean_long, y = mean_lat, col = factor(Group_size)), height = 0.1, width = 0.1, alpha = 0.5) +
+scale_alpha(range = c(0, 0.3), guide = FALSE) +
+  xlab("") + ylab("") +
+  theme(legend.text = element_text(size = 10), 
+        legend.title = element_text(size = 11), 
+        legend.position = 'bottom', 
+    axis.line = element_blank(),
+    axis.ticks = element_blank(),
+    axis.text = element_blank(),
+    strip.text = element_text(size = 10),
+    strip.background = element_blank(),
+    panel.border = element_rect(colour = "black", fill = NA, size = 5)) +
+  scale_color_manual(values = color6, name = 'Group Size')
+
+```
+
+```{r maps by source, include = FALSE}
+
+#Source - facet
+allsights_source <-
+  ggmap(get_map(location = WAbox, source = "google", maptype = "terrain")) +
+  geom_jitter(data = HP_data, aes(x = long_all, y = lat_all), width = .1, height = .1, size = .7, alpha = .5, color = 'grey50') +
+scale_alpha(range = c(0, 0.3), guide = FALSE) +
+  xlab("") + ylab("") +
+  theme(
+    axis.line = element_blank(),
+    axis.ticks = element_blank(),
+    axis.text = element_blank(),
+    strip.text = element_text(size = 10),
+    strip.background = element_blank(),
+    panel.border = element_rect(colour = "black", fill = NA, size = 5)) +
+ facet_wrap(~ Reliable_Source) 
+
+```
+
+```{r maps by record type, include = FALSE}
+
+###all records jitter, facet - record type
+allsights_type <-
+  ggmap(get_map(location = WAbox, source = "google", maptype = "terrain")) +
+  geom_jitter(data = HP_data, aes(x = long_all, y = lat_all), 
+              width = .1, height = .1, size = .7, alpha = .5, color = 'grey50') +
+scale_alpha(range = c(0, 0.3), guide = FALSE) +
+  xlab("") + ylab("") +
+  theme(
+    axis.line = element_blank(),
+    axis.ticks = element_blank(),
+    axis.text = element_blank(),
+    strip.text = element_text(size = 10),
+    strip.background = element_blank(),
+    panel.border = element_rect(colour = "black", fill = NA, size = 5)) +
+ facet_wrap(~ Record_Type) 
+
+#Record type - heatmap color
+allsights_type_heatmap <- 
+  ggmap(get_map(location = pugetbox, source = "google", maptype = "terrain")) +
+  geom_jitter(data = HP_data, aes(x = long_all, y = lat_all), 
+              width = .1, height = .1, size = 0.3, alpha = .3, col = 'grey50')  +
+  stat_density2d(data = HP_data, aes(x = long_all, y = lat_all, color = Record_Type), 
+              bins = 4, size = .8) + scale_color_manual(values = color2) +
+  theme(legend.text = element_text(size = 11),
+    axis.title = element_blank(),
+    axis.ticks = element_blank(),
+    axis.text = element_blank(), 
+    axis.line = element_blank(),
+    legend.title = element_blank(),
+    legend.position = 'bottom')
+  
+
+```
+
+```{r seasonal heatmaps, include = FALSE}
+
+#Seasonal hotspots -facet
+
+allsights_seasons_heatmap <-   
+ ggmap(get_map(location = WAbox, source = "google", maptype = "terrain")) +
+  geom_jitter(data = HP_data, aes(x = long_all, y = lat_all), 
+              width = .1, height = .1, size = 0.3, alpha = .3, col = 'grey50')  +
+  stat_density2d(data = HP_data, aes(x = long_all, y = lat_all, color = Season), 
+              bins = 4, size = .8) +
+  theme(legend.text = element_text(size = 10),
+    axis.title = element_blank(),
+    axis.ticks = element_blank(),
+    axis.text = element_blank(), 
+    axis.line = element_blank(),
+    legend.title = element_blank(),
+    legend.position = 'bottom') + 
+  scale_color_manual(values = color4)
+
+```
+
+###Objective  
+Conduct exploratory mapping analysis on harbor porpoise sightings and strandings data. Steps taken included deriving and applying mean latitude and longitude coordinates from records in the same quadrants to records where lat and long data are missing. Where no lat and long data existed for a given quadrant, data were   derived from survey grid and then applied. 
+
+###Summary Figures  
+The following summary figures were created by summarizing the data by year, month, season, and record types. Kernel density maps were created using the statdensity function in R. In the maps, “count” refers to the number of unique records, while “group size” refers to the number of individuals represented in the sighting.
+
+```{r}
+sights_yr_source
+```
+
+All sightings and strandings by report source.
+
+```{r}
+sights_mo_source
+```
+
+All sightings and strandings summed across months by report source.
+
+```{r}
+sights_seas_source
+```
+All sightings and strandings summed across seasons by report source.
+
+
+```{r}
+sights_yr_type
+```
+
+All records per year according to whether they are strandings or sightings.
+
+```{r}
+sights_mo_type
+```
+
+All sightings and strandings summed across months by type of record.
+
+```{r}
+sights_seas_type
+```
+
+All sightings and strandings summed across seasons by type of record.
+
+```{r}
+sights_month_mean
+```
+
+Basic boxplot showing interannual variation within months.
+
+```{r}
+sights_seas_mean
+```
+
+Basic boxplot showing interannual variation within seasons.
+
+###Maps  
+
+```{r}
+allsights
+```
+
+All sightings and strandings, each dot represents a unique record. 
+
+```{r}
+allsights_quadsize
+```
+
+All sightings and strandings per quadrant, each dot representing sum of records in that quadrant, with darker colors representing quadrants with a greater number of records.
+
+```{r}
+allsights_quadsize_puget
+```
+
+Same as above, zoomed in.
+
+```{r}
+allsights_group_size
+```
+
+All sightings and strandings, with each dot representing a unique record of a certain group size.
+
+```{r}
+allsights_source
+```
+
+All sightings and strandings, with each dot representing a unique record.
+
+```{r}
+allsights_type_heatmap
+```
+
+Kernel density plot map showing mostly overlapping hotspots for sightings and strandings.
+
+```{r}
+allsights_seasons_heatmap
+```
+
+Kernel density plot map showing mostly overlapping hotspots for sightings and strandings Spring, Summer, and Fall, with more broadly distributed records during the Winter. These kernel density contour lines aren't to scale (i.e. many fewer records in winter).
+
