@@ -1,9 +1,9 @@
 ---
-title: "Harbor Porpoise Sightings and Strandings"
-author: "Amanda Warlick"
+title: ""
+author: ""
 output: 
   word_document:
-  reference_docx: mytemplate.docx
+    reference_docx: mytemplate.docx
 ---
 
 ```{r include = FALSE}
@@ -26,6 +26,7 @@ library(knitr)
 library(reshape2)
 library(stringr)
 library(magrittr)
+library(MASS)
 library(stats) #kruskal.test
 library(PMCMR) # posthoc.kruskal.nemenyi.test https://cran.r-project.org/web/packages/PMCMR/vignettes/PMCMR.pdf
 library(pgirmess) #kruskalmc https://cran.r-project.org/web/packages/pgirmess/pgirmess.pdf 
@@ -46,7 +47,7 @@ fig_theme <- function(...) {
     panel.grid = element_blank(), 
     legend.title = element_blank(),
     legend.key = element_blank(),
-    legend.text = element_text(size = 5.5),
+    legend.text = element_text(size = 8),
     ...)
 }
 
@@ -62,7 +63,7 @@ pubfigure_simple_theme <- function(...) {
     panel.grid = element_blank(),
     legend.title = element_blank(),
     legend.key = element_blank(),
-    legend.text = element_text(size = 5.5),
+    legend.text = element_text(size = 8),
     ...)
 }
 
@@ -74,8 +75,8 @@ color2 <- c("#4aaaa5", "#e45f56")
 case <- function(x)
   paste0(toupper(substr(x, 1, 1)), tolower(substring(x, 2)))
 
-# figs <- captioner(prefix="Figure")
-# tbls <- captioner(prefix="Table")
+figs <- captioner(prefix="Figure")
+tbls <- captioner(prefix="Table")
 
 # figs("name") <-- "Figure  1: Caption."
 # figs("name",display="cite") <-- "Figure  1"
@@ -84,13 +85,16 @@ case <- function(x)
 ```
 
 ```{r load and clean data, include = FALSE}
+setwd("~/Documents/R/HarborPorpoiseSightings")
 
-#load csv derived from manual input of lat/longs from grid in arcGIS
+##Data cleaning - no longer want to run each time
+
+# #load csv derived from manual input of lat/longs from grid in arcGIS
 input_lat_long <- read.csv("QuadLatLong.csv", header = TRUE, na.strings = "", stringsAsFactors = FALSE)
 
 #sightings/strandings data
 sightings_data <- read.csv("HPData.csv", header = TRUE, na.strings = "", stringsAsFactors = FALSE) %>%
-  select(-Count)
+  dplyr::select(-Count)
 sightings_data$Count_clean <- gsub("\\~", "", sightings_data$Count_clean) #get symbols out of count column
 sightings_data$Count_clean <- gsub("\\+", "", sightings_data$Count_clean)
 sightings_data$Count <- as.numeric(sightings_data$Count_clean)
@@ -100,121 +104,118 @@ sightings_data$Count <- round(sightings_data$Count, 0)
 mean_lat_long <- sightings_data %>%
   filter(ActualLatitude > 0) %>%
   group_by(Quadrant) %>%
-  summarize(mean_long = mean(ActualLongitude), mean_lat = mean(ActualLatitude)) 
+  summarize(mean_long = mean(ActualLongitude), mean_lat = mean(ActualLatitude))
 
 sightings_data <- sightings_data %>%
-  select(-Count_clean) %>%
+  dplyr::select(-Count_clean) %>%
   merge(mean_lat_long, by = 'Quadrant', all = T) %>%
-  transform(Reliable_Source = ifelse(Source == 'Reliable', 'Reliable', 'Other')) %>%
+  transform(Reliable_Source = ifelse(Source == 'Reliable', 'Trained_Observer', 'Public')) %>%
   transform(Record_Type = ifelse(is.na(Stranded) | Stranded == 'Yes', 'Stranding', ifelse(Stranded == 'No', 'Sighting', 'Other'))) %>%
-  transform(Season = ifelse(Month == 12 | Month < 3, 'Winter', 
-                     ifelse(Month < 6 & Month > 2, 'Spring', 
+  transform(Season = ifelse(Month == 12 | Month < 3, 'Winter',
+                     ifelse(Month < 6 & Month > 2, 'Spring',
                      ifelse(Month < 9 & Month > 5, 'Summer', 'Fall')))) %>%
-  transform(Group_size = ifelse(Count < 5, '1-5', 
-            ifelse(Count > 5 & Count < 20, '5-20',
-            ifelse(Count > 20 & Count < 50, '20-50',
-            ifelse(Count > 50 & Count < 100, '50-100',
-            ifelse(Count > 100 & Count < 200, '100-200', '200+')))))) %>%
+  transform(Group_size = ifelse(Count < 5, '1-5',
+            ifelse(Count > 4 & Count < 10, '5-10',
+            ifelse(Count > 9 & Count < 25, '10-25',
+            ifelse(Count > 24 & Count < 50, '25-50',
+            ifelse(Count > 49 & Count < 100, '50-100', '100+')))))) %>%
   merge(input_lat_long, by = 'Quadrant', all = T)
-sightings_data$Group_size <- factor(sightings_data$Group_size, levels = c('1-5', '5-20', '20-50', '50-100', '100-200', '200+'))
+sightings_data$Group_size <- factor(sightings_data$Group_size, levels = c('1-5', '5-10', '10-25', '25-50', '50-100', '100+'))
 sightings_data$Season = factor(sightings_data$Season, levels = c('Spring', 'Summer', 'Fall', 'Winter'))
 
 #Use mean where lat/longs that are missing or 0.00
-sightings_data$lat_applied <- ifelse(is.na(sightings_data$ActualLatitude) | 
-                                    sightings_data$ActualLatitude < 1, 
+sightings_data$lat_applied <- ifelse(is.na(sightings_data$ActualLatitude) |
+                                    sightings_data$ActualLatitude < 1,
                               sightings_data$mean_lat, sightings_data$ActualLatitude)
-sightings_data$long_applied <- ifelse(is.na(sightings_data$ActualLongitude) | 
-                                    sightings_data$ActualLongitude < 1, 
+sightings_data$long_applied <- ifelse(is.na(sightings_data$ActualLongitude) |
+                                    sightings_data$ActualLongitude < 1,
                               sightings_data$mean_long, sightings_data$ActualLongitude)
 #use manual input where lat/longs are still missing
 sightings_data$lat_all <- ifelse(is.na(sightings_data$lat_applied), sightings_data$Arc_Lat, sightings_data$lat_applied)
 sightings_data$long_all <- ifelse(is.na(sightings_data$long_applied), sightings_data$Arc_Long, sightings_data$long_applied)
 
 HP_data <- sightings_data %>%
-  select(-c(ActualLatitude, ActualLongitude, mean_lat, mean_long, lat_applied, long_applied, Direction, Location2, Pod, LikelyPod, ReportingParty, Stranded))
+  dplyr::select(-c(ActualLatitude, ActualLongitude, mean_lat, mean_long, lat_applied, long_applied, Direction, Location2, Pod, LikelyPod, ReportingParty, Stranded))
 
 #create column where there is only one unique lat/long per quadrant for maps
 mean_lat_long_final <- HP_data %>%
   #filter(lat_all > 0) %>%
   group_by(Quadrant) %>%
-  summarize(mean_long = mean(long_all), mean_lat = mean(lat_all)) 
+  summarize(mean_long = mean(long_all), mean_lat = mean(lat_all))
 
 #merge back with main dataframe
 HP_data <- HP_data %>% merge(mean_lat_long_final, by = 'Quadrant')
+
+write.csv(HP_data, "HP_data.csv", row.names = F)
+
+#HP_data <- read.csv("HP_data.csv", header = TRUE, na.strings = "", stringsAsFactors = FALSE)
 
 ```
 
 ```{r basic annual monthly seasonal figures, include = FALSE}
 
 numberperyear <- HP_data %>%
-  group_by(Year) %>%
-  summarize(Count = n_distinct(RecordID))
+  group_by(Year, Record_Type) %>%
+  summarize(cnt = n_distinct(RecordID))
 
 numberpermonth <- HP_data %>%
-  group_by(Year, Month) %>%
-  summarize(Count = n_distinct(RecordID))
+  group_by(Year, Month, Record_Type) %>%
+  summarize(cnt = n_distinct(RecordID))
 
 numberperseason <- HP_data %>%
-  group_by(Year, Season) %>%
-  summarize(Count = n_distinct(RecordID)) 
+  group_by(Year, Season, Record_Type) %>%
+  summarize(cnt = n_distinct(RecordID)) 
 
-#counts per year
-sights_yr <- ggplot(data = numberperyear, aes(x = Year, y = Count)) + 
-  geom_line() +
-  geom_smooth( method = "loess", se = FALSE, col = 'black', size = 0.8, linetype = 3) +
-  xlab("") + ylab("Annual Sightings") +
-  scale_y_continuous(labels = comma) +
-  scale_x_continuous(breaks = c(1975, 1980, 1985, 1990, 1995, 2000, 2005, 2010, 2015)) +
-  fig_theme() 
 
-#Line plot for sum of monthly counts
-sights_month_tot <- ggplot(data = numberpermonth %>% group_by(Month) %>% summarize(Count = sum(Count)), 
-                       aes(x = factor(Month), y = Count)) + 
-  geom_bar(stat = 'identity') +
-  xlab("") + ylab("Total Monthly Sightings") +
-  scale_y_continuous(labels = comma) +
-  fig_theme() 
-
-#Bar plot for average monthly counts
-sights_month_mean <- ggplot(data = numberpermonth, 
-                       aes(x = factor(Month), y = Count)) + 
+# #Bar for average seasonal counts
+records_seas_mean <- ggplot(data = numberperseason,
+                       aes(x = factor(Season), y = cnt)) +
   geom_boxplot() +
-  xlab("") + ylab("Mean Monthly Sightings") +
+  xlab("") + ylab("Mean Seasonal Records") +
   scale_y_continuous(labels = comma) +
-  fig_theme() 
-
-#Line plot for sum of seasonal counts
-sights_seas_tot <- ggplot(data = numberperseason %>% group_by(Season) %>% summarize(Count = sum(Count)), 
-                       aes(x = factor(Season), y = Count)) + 
-  geom_bar(stat = 'identity') +
-  xlab("") + ylab("Total Seasonal Sightings") +
-  scale_y_continuous(labels = comma) +
-  fig_theme() 
-
-#Bar plot for average seasonal counts
-sights_seas_mean <- ggplot(data = numberperseason, 
-                       aes(x = factor(Season), y = Count)) + 
-  geom_boxplot() +
-  xlab("") + ylab("Mean Seasonal Sightings") +
-  scale_y_continuous(labels = comma) +
-  fig_theme() 
+  fig_theme()
 
 ```
 
-```{r, include = FALSE}
+```{r timeseries, include = FALSE}
 
-#timeseries and seasonal by source
-
-sights_yr_source <- ggplot(data = HP_data %>% group_by(Year, Reliable_Source) %>% summarize(Count = n_distinct(RecordID)), aes(x = Year, y = Count, group = Reliable_Source, color = Reliable_Source)) + 
-  geom_line(size = 0.9) +
+#facet record type, linetype source
+yr_type_source <- ggplot(data = HP_data %>% group_by(Year, Record_Type, Reliable_Source) %>% summarize(cnt = n_distinct(RecordID)), aes(x = Year, y = cnt, group = Reliable_Source, linetype = Reliable_Source)) + 
+  geom_line(size = 0.6) +
   #geom_smooth(method = "loess", se = FALSE, col = 'black', size = 0.8, linetype = 3) +
-  xlab("") + ylab("Annual Sightings by Source") +
+  xlab("") + ylab("Annual Records") +
   scale_y_continuous(labels = comma) +
   scale_x_continuous(breaks = c(1975, 1980, 1985, 1990, 1995, 2000, 2005, 2010, 2015)) +
-  fig_theme(legend.position = 'top') + 
-  scale_color_manual(values = color1)
+  fig_theme(legend.position = 'bottom',
+            strip.background = element_blank(),
+            axis.title.x = element_blank(),
+            strip.text = element_text(size = 10),
+            legend.key.size = unit(0.9, "cm")) + 
+  scale_linetype_manual(values = c("dashed", "solid", "dashed", "solid"), labels = c("Public", "Trained Observer")) +
+  facet_grid(~Record_Type)
+figs("yr_type_source", caption = "Number of sightings and strandings per year according to reporting source.")
 
-sights_mo_source <- ggplot(data = HP_data %>% group_by(Month, Reliable_Source) %>% summarize(Count = n_distinct(RecordID)), aes(x = factor(Month), y = Count, 
+```
+
+```{r seasonal, include = FALSE}
+
+#seasons by type and source
+records_seas_source <- ggplot(data = HP_data %>% group_by(Season, Record_Type, Reliable_Source) %>% summarize(cnt = n_distinct(RecordID)), aes(x = factor(Season), y = cnt, 
+                          group = Reliable_Source, fill = Reliable_Source)) + 
+  geom_bar(stat = 'identity', position = 'dodge') +
+  #geom_smooth(method = "loess", se = FALSE, col = 'black', size = 0.8, linetype = 3) +
+  xlab("") + ylab("Total Records") +
+  scale_y_continuous(labels = comma) +
+  fig_theme(legend.position = 'bottom',
+            strip.text = element_text(size = 10),
+            strip.background = element_blank(),
+            axis.title.x = element_blank()) + 
+  scale_fill_manual(values = c("grey65", "grey20", "grey65", "grey20"), labels = c("Public", "Trained Observer")) +
+  facet_grid(~Record_Type)
+figs("records_seas_source", caption = "Sum of sightings and strandings reported in each season by trained observers (black) and other public reporting sources (grey).")
+
+#monthly by source
+records_mo_source <- ggplot(data = HP_data %>% group_by(Month, Reliable_Source) %>% summarize(cnt = n_distinct(RecordID)), aes(x = factor(Month), y = cnt, 
                           group = Reliable_Source, fill = Reliable_Source)) + 
   geom_bar(stat = 'identity', position = 'dodge') +
   #geom_smooth(method = "loess", se = FALSE, col = 'black', size = 0.8, linetype = 3) +
@@ -223,46 +224,16 @@ sights_mo_source <- ggplot(data = HP_data %>% group_by(Month, Reliable_Source) %
   fig_theme(legend.position = 'top') + 
   scale_fill_manual(values = color1)
 
-sights_seas_source <- ggplot(data = HP_data %>% group_by(Season, Reliable_Source) %>% summarize(Count = n_distinct(RecordID)), aes(x = factor(Season), y = Count, 
-                          group = Reliable_Source, fill = Reliable_Source)) + 
-  geom_bar(stat = 'identity', position = 'dodge') +
-  #geom_smooth(method = "loess", se = FALSE, col = 'black', size = 0.8, linetype = 3) +
-  xlab("") + ylab("Seasonal Sightings by Source") +
-  scale_y_continuous(labels = comma) +
-  fig_theme(legend.position = 'top') + 
-  scale_fill_manual(values = color1)
-```
-
-```{r figures by record type, include = FALSE}
-
-#timeseries and seasonal by record type
-
-sights_yr_type <- ggplot(data = HP_data %>% group_by(Year, Record_Type) %>% summarize(Count = n_distinct(RecordID)), aes(x = Year, y = Count, group = Record_Type, color = Record_Type)) + 
-  geom_line(size = 0.9) +
-  #geom_smooth(method = "loess", se = FALSE, col = 'black', size = 0.8, linetype = 3) +
-  xlab("") + ylab("Annual Sightings by Source") +
-  scale_y_continuous(labels = comma) +
-  scale_x_continuous(breaks = c(1975, 1980, 1985, 1990, 1995, 2000, 2005, 2010, 2015)) +
-  fig_theme(legend.position = 'top') + 
-  scale_color_manual(values = color2)
-
-sights_mo_type <- ggplot(data = HP_data %>% group_by(Month, Record_Type) %>% summarize(Count = n_distinct(RecordID)), aes(x = factor(Month), y = Count, 
+#monthly by type
+records_mo_type <- ggplot(data = HP_data %>% group_by(Month, Record_Type) %>% summarize(cnt = n_distinct(RecordID)), aes(x = factor(Month), y = cnt, 
                           group = Record_Type, fill = Record_Type)) + 
   geom_bar(stat = 'identity', position = 'dodge') +
   #geom_smooth(method = "loess", se = FALSE, col = 'black', size = 0.8, linetype = 3) +
-  xlab("") + ylab("Monthly Sightings by Source") +
+  xlab("") + ylab("Monthly Sightings by Type") +
   scale_y_continuous(labels = comma) +
   fig_theme(legend.position = 'top') + 
   scale_fill_manual(values = color2)
 
-sights_seas_type <- ggplot(data = HP_data %>% group_by(Season, Record_Type) %>% summarize(Count = n_distinct(RecordID)), aes(x = factor(Season), y = Count, 
-                          group = Record_Type, fill = Record_Type)) + 
-  geom_bar(stat = 'identity', position = 'dodge') +
-  #geom_smooth(method = "loess", se = FALSE, col = 'black', size = 0.8, linetype = 3) +
-  xlab("") + ylab("Seasonal Sightings by Source") +
-  scale_y_continuous(labels = comma) +
-  fig_theme(legend.position = 'top') + 
-  scale_fill_manual(values = color2)
 ```
 
 ```{r mapping, include = FALSE}
@@ -272,60 +243,69 @@ WAbox <- c(-124.8, 46.95, -121.7, 49.3)
 pugetbox <- c(-124.1, 47.1, -122.1, 49.8)
 
 ###all records, overlapping jittered dots
-allsights <- ggmap(get_map(location = WAbox, source = "google", maptype = "terrain")) +
-   geom_jitter(data = HP_data, aes(x = long_all, y = lat_all), width = .1, height = .1, size = .7, alpha = .5, color = 'grey50') +
-scale_alpha(range = c(0, 0.3), guide = FALSE) +
+# allrecords <- ggmap(get_map(location = WAbox, source = "google", maptype = "terrain")) +
+#    geom_jitter(data = HP_data, aes(x = long_all, y = lat_all), width = .1, height = .1, size = .7, alpha = .5, color = 'grey50') +
+# scale_alpha(range = c(0, 0.3), guide = FALSE) +
+#   xlab("") + ylab("") +
+#   theme(
+#     axis.line = element_blank(),
+#     axis.ticks = element_blank(),
+#     axis.text = element_blank(),
+#     strip.text = element_text(size = 10),
+#     strip.background = element_blank(),
+#     panel.border = element_rect(colour = "black", fill = NA, size = 5)) 
+
+###all records, summed by quadrant; color = more records
+quadrant_counts <- HP_data %>%
+  filter(Record_Type == 'Sighting') %>%
+  group_by(Quadrant, mean_lat, mean_long) %>%
+  summarize(Records = n_distinct(RecordID))
+
+#all quadtrants - sightings only
+map_records_size <- 
+  ggmap(get_map(location = WAbox, source = "google", maptype = "terrain")) +
+  geom_point(data = quadrant_counts, aes(x = mean_long, y = mean_lat, color = Records, size = Records, alpha = .9)) +
+scale_alpha(range = c(0.6, 0.9), guide = FALSE) +
+  xlab("") + ylab("") +
+  theme(legend.text = element_text(size = 10), 
+        legend.title = element_text(size = 10),
+    axis.line = element_blank(),
+    axis.ticks = element_blank(),
+    axis.text = element_blank(),
+    strip.text = element_text(size = 10),
+    strip.background = element_blank(),
+    legend.position = 'top',
+    panel.border = element_rect(colour = "black", fill = NA, size = 5)) + 
+  scale_color_continuous(trans = 'reverse') + 
+  guides(color = guide_legend("Records"), size = guide_legend("Records"))
+
+figs("map_records_size", caption = "Symbols representing quadrant locations where sightings have occurred over the study period, with darker colors representing quadrants with a larger number of total sightings records.")
+
+#puget sound zoom - sightings only, darker symbols = more records
+map_quadsize_zoom <- ggmap(get_map(location = pugetbox, source = "google", maptype = "terrain")) +
+   geom_point(data = quadrant_counts, aes(x = mean_long, y = mean_lat, color = Records, alpha = .9)) +
+scale_alpha(range = c(0.6, 0.9), guide = FALSE) +
   xlab("") + ylab("") +
   theme(
-    axis.line = element_blank(),
-    axis.ticks = element_blank(),
-    axis.text = element_blank(),
-    strip.text = element_text(size = 10),
-    strip.background = element_blank(),
-    panel.border = element_rect(colour = "black", fill = NA, size = 5)) 
-
-###all records, summed by quadrant color = more records
-quadrant_counts <- HP_data %>%
-  group_by(Quadrant, mean_lat, mean_long) %>%
-  summarize(Count = n_distinct(RecordID))
-
-#all quadtrants
-allsights_quadsize <- ggmap(get_map(location = WAbox, source = "google", maptype = "terrain")) +
-   geom_point(data = quadrant_counts, aes(x = mean_long, y = mean_lat, color = Count, alpha = .9)) +
-scale_alpha(range = c(0.6, 0.9), guide = FALSE) +
-  xlab("") + ylab("") +
-  theme(legend.text = element_text(size = 10), 
-        legend.title = element_text(size = 11),
+    legend.position = 'top',
+    legend.text = element_text(size = 10), 
+    legend.title = element_text(size = 10),
     axis.line = element_blank(),
     axis.ticks = element_blank(),
     axis.text = element_blank(),
     strip.text = element_text(size = 10),
     strip.background = element_blank(),
     panel.border = element_rect(colour = "black", fill = NA, size = 5)) + 
-  scale_color_continuous(trans = 'reverse')
-
-#puget sound zoom
-allsights_quadsize_puget <- ggmap(get_map(location = pugetbox, source = "google", maptype = "terrain")) +
-   geom_point(data = quadrant_counts, aes(x = mean_long, y = mean_lat, color = Count, alpha = .9)) +
-scale_alpha(range = c(0.6, 0.9), guide = FALSE) +
-  xlab("") + ylab("") +
-  theme(legend.text = element_text(size = 10), 
-        legend.title = element_text(size = 11),
-    axis.line = element_blank(),
-    axis.ticks = element_blank(),
-    axis.text = element_blank(),
-    strip.text = element_text(size = 10),
-    strip.background = element_blank(),
-    panel.border = element_rect(colour = "black", fill = NA, size = 5)) + 
-  scale_color_continuous(trans = 'reverse')
+  scale_color_continuous(trans = 'reverse') + 
+  guides(color = guide_legend("Records"), size = guide_legend("Records"))
 
 ```
 
 ```{r maps by group sighting size, include = FALSE}
 
-###all records colors by group sighting size
-allsights_group_size <- ggmap(get_map(location = WAbox, source = "google", maptype = "terrain")) +
-   geom_jitter(data = HP_data %>% filter(!is.na(Group_size)), 
+###all records; colors by group sighting size
+map_group_size_cat <- ggmap(get_map(location = WAbox, source = "google", maptype = "terrain")) +
+   geom_jitter(data = HP_data %>% filter(Record_Type == 'Sighting' & !is.na(Group_size)), 
                aes(x = mean_long, y = mean_lat, col = factor(Group_size)), height = 0.1, width = 0.1, alpha = 0.5) +
 scale_alpha(range = c(0, 0.3), guide = FALSE) +
   xlab("") + ylab("") +
@@ -340,60 +320,59 @@ scale_alpha(range = c(0, 0.3), guide = FALSE) +
     panel.border = element_rect(colour = "black", fill = NA, size = 5)) +
   scale_color_manual(values = color6, name = 'Group Size')
 
+#symbol size and color across quadrant by mean group count size
+quad_size <- HP_data %>%
+  filter(Record_Type == 'Sighting' & Count != 'NA') %>%
+  group_by(Quadrant, mean_lat, mean_long) %>%
+  summarize(count_mean = mean(Count))
+
+map_group_size <- ggmap(get_map(location = WAbox, source = "google", maptype = "terrain")) +
+   geom_point(data = quad_size, aes(x = mean_long, y = mean_lat, color = count_mean, size = count_mean, alpha = .9)) +
+scale_alpha(range = c(0.6, 0.9), guide = FALSE) +
+  xlab("") + ylab("") +
+  theme(
+    legend.position = 'top',
+    legend.text = element_text(size = 10), 
+    legend.title = element_text(size = 10),
+    axis.line = element_blank(),
+    axis.ticks = element_blank(),
+    axis.text = element_blank(),
+    strip.text = element_text(size = 10),
+    strip.background = element_blank(),
+    panel.border = element_rect(colour = "black", fill = NA, size = 5)) + 
+  scale_color_continuous(trans = 'reverse') + 
+  guides(color = guide_legend("Group Size"), size = guide_legend("Group Size"))
+figs("map_group_size", caption = "Symbols representing quadrant locations where sightings have occurred over the study period, with darker colors representing quadrants with larger mean sighting group size.")
+
 ```
 
 ```{r maps by source, include = FALSE}
 
-#Source - facet
-allsights_source <-
-  ggmap(get_map(location = WAbox, source = "google", maptype = "terrain")) +
-  geom_jitter(data = HP_data, aes(x = long_all, y = lat_all), width = .1, height = .1, size = .7, alpha = .5, color = 'grey50') +
-scale_alpha(range = c(0, 0.3), guide = FALSE) +
-  xlab("") + ylab("") +
-  theme(
-    axis.line = element_blank(),
-    axis.ticks = element_blank(),
-    axis.text = element_blank(),
-    strip.text = element_text(size = 10),
-    strip.background = element_blank(),
-    panel.border = element_rect(colour = "black", fill = NA, size = 5)) +
- facet_wrap(~ Reliable_Source) 
+# #Source - facet
 
-```
+##nearly identical distribution over San Juans, extra reliable cluster over whidbey
 
-```{r maps by record type, include = FALSE}
-
-###all records jitter, facet - record type
-allsights_type <-
-  ggmap(get_map(location = WAbox, source = "google", maptype = "terrain")) +
-  geom_jitter(data = HP_data, aes(x = long_all, y = lat_all), 
-              width = .1, height = .1, size = .7, alpha = .5, color = 'grey50') +
-scale_alpha(range = c(0, 0.3), guide = FALSE) +
-  xlab("") + ylab("") +
-  theme(
-    axis.line = element_blank(),
-    axis.ticks = element_blank(),
-    axis.text = element_blank(),
-    strip.text = element_text(size = 10),
-    strip.background = element_blank(),
-    panel.border = element_rect(colour = "black", fill = NA, size = 5)) +
- facet_wrap(~ Record_Type) 
-
-#Record type - heatmap color
-allsights_type_heatmap <- 
+map_source_zoom <- 
   ggmap(get_map(location = pugetbox, source = "google", maptype = "terrain")) +
   geom_jitter(data = HP_data, aes(x = long_all, y = lat_all), 
               width = .1, height = .1, size = 0.3, alpha = .3, col = 'grey50')  +
-  stat_density2d(data = HP_data, aes(x = long_all, y = lat_all, color = Record_Type), 
-              bins = 4, size = .8) + scale_color_manual(values = color2) +
-  theme(legend.text = element_text(size = 11),
+  stat_density2d(data = HP_data, aes(x = long_all, y = lat_all, color = Reliable_Source, linetype = Reliable_Source), 
+              bins = 4, size = .5) +
+  theme(legend.text = element_text(size = 10),
     axis.title = element_blank(),
     axis.ticks = element_blank(),
     axis.text = element_blank(), 
     axis.line = element_blank(),
     legend.title = element_blank(),
-    legend.position = 'bottom')
-  
+    strip.background = element_blank(),
+    strip.text = element_text(size = 10),
+    legend.position = 'bottom', 
+    legend.key.size = unit(0.7, "cm")) +
+  facet_grid(~Record_Type) +
+  scale_linetype_manual(values = c("solid", "dashed", "solid", "dashed"), labels = c("Public", "Trained Observer")) +
+  scale_color_manual(values = c("grey30", "grey25", "grey30", "grey25"), labels = c("Public", "Trained Observer"))  
+
+figs("map_source_zoom", caption = "Kernel density clusters of strandings and sightings from trained observers and other reporting sources.")
 
 ```
 
@@ -401,118 +380,313 @@ allsights_type_heatmap <-
 
 #Seasonal hotspots -facet
 
-allsights_seasons_heatmap <-   
+map_seasons <-   
  ggmap(get_map(location = WAbox, source = "google", maptype = "terrain")) +
   geom_jitter(data = HP_data, aes(x = long_all, y = lat_all), 
               width = .1, height = .1, size = 0.3, alpha = .3, col = 'grey50')  +
   stat_density2d(data = HP_data, aes(x = long_all, y = lat_all, color = Season), 
-              bins = 4, size = .8) +
+              bins = 4, size = .5) +
   theme(legend.text = element_text(size = 10),
     axis.title = element_blank(),
     axis.ticks = element_blank(),
     axis.text = element_blank(), 
     axis.line = element_blank(),
     legend.title = element_blank(),
-    legend.position = 'bottom') + 
-  scale_color_manual(values = color4)
+    legend.position = 'bottom',
+    strip.text = element_text(size = 10),
+    strip.background = element_blank()) + 
+  scale_color_manual(values = color4) + 
+  facet_wrap(~Record_Type)
+
+map_seasons_zoom <-   
+ ggmap(get_map(location = pugetbox, source = "google", maptype = "terrain")) +
+  geom_jitter(data = HP_data, aes(x = long_all, y = lat_all), 
+              width = .1, height = .1, size = 0.3, alpha = .3, col = 'grey50')  +
+  stat_density2d(data = HP_data, aes(x = long_all, y = lat_all, color = Season), 
+              bins = 4, size = .5) +
+  theme(legend.text = element_text(size = 10),
+    axis.title = element_blank(),
+    axis.ticks = element_blank(),
+    axis.text = element_blank(), 
+    axis.line = element_blank(),
+    legend.title = element_blank(),
+    legend.position = 'bottom',
+    strip.text = element_text(size = 10),
+    strip.background = element_blank()) + 
+  scale_color_manual(values = color4) + 
+  facet_wrap(~Record_Type)
+
+figs("map_seasons_zoom", caption = "Kernel density clusters of sightings and strandings during each season of the year.")
 
 ```
 
-###Objective  
-Conduct exploratory mapping analysis on harbor porpoise sightings and strandings data. Steps taken included deriving and applying mean latitude and longitude coordinates from records in the same quadrants to records where lat and long data are missing. Where no lat and long data existed for a given quadrant, data were   derived from survey grid and then applied. 
+```{r inline chunks, include = FALSE}
+#Inline chunks
 
-###Summary Figures  
-The following summary figures were created by summarizing the data by year, month, season, and record types. Kernel density maps were created using the statdensity function in R. In the maps, “count” refers to the number of unique records, while “group size” refers to the number of individuals represented in the sighting.
+overall_counts <- HP_data %>%
+  group_by(Record_Type, Reliable_Source) %>%
+  summarize(cnt = n_distinct(RecordID)) %>%
+  dcast(Record_Type ~ Reliable_Source, value.var = 'cnt') %>%
+  dplyr::select(Record_Type, Trained_Observer, Public)
+
+group_size_counts <- HP_data %>%
+  filter(Record_Type == 'Sighting') %>%
+  group_by(Group_size) %>%
+  summarize(Count = n_distinct(RecordID))
+
+quad_sight_counts <- HP_data %>%
+  filter(Record_Type == 'Sighting') %>%
+  group_by(Quadrant) %>%
+  summarize(cnt = n_distinct(RecordID)) %>% 
+  # group_by(Quadrant) %>%
+  # summarize(mean = mean(cnt)) %>%
+  # arrange(desc(mean))
+  filter(!is.na(cnt)) %>%
+  filter(cnt != 'NA' & Quadrant != 'NA') 
+
+quad_strands_counts <- HP_data %>%
+  filter(Record_Type == 'Stranding') %>%
+  group_by(Quadrant) %>%
+  summarize(cnt = n_distinct(RecordID)) %>%
+  # group_by(Quadrant) %>%
+  # summarize(mean = mean(cnt)) %>%
+  # arrange(desc(mean))
+  filter(!is.na(cnt)) %>%
+  filter(cnt != 'NA' & Quadrant != 'NA') 
+```
+
+```{r temporal stats, include = FALSE}
+#Temporal stats
+
+#Per year - all
+summary(glm.nb(cnt ~ Year, data = numberperyear %>% filter(Record_Type == 'Sighting'))) #not sig
+summary(glm.nb(cnt ~ Year, data = numberperyear %>% filter(Record_Type == 'Stranding'))) #sig
+
+#Per year - any quadrants increasing? Not significantly
+agg_data <- HP_data %>% 
+  filter(Record_Type == 'Stranding') %>%
+  group_by(Year, Quadrant) %>%
+  dplyr::summarize(cnt = n_distinct(RecordID)) %>%
+  transform(Quadrant = factor(Quadrant))
+
+summary(glm.nb(cnt ~ Year + Quadrant, data = agg_data))
+summary(glm(cnt ~ Year + Quadrant, family = poisson(link = log), data = agg_data))
+summary(glm(cnt ~ Year + Quadrant, family = 'quasipoisson', data = agg_data))
+
+#Group size?
+agg_data <- HP_data %>% 
+  filter(Record_Type == 'Sighting') %>%
+  group_by(Year, Count) %>%
+  dplyr::summarize(cnt = n_distinct(RecordID))
+
+summary(glm.nb(cnt ~ Year + Count, data = agg_data))
+summary(glm(cnt ~ Year + Count, family = poisson(link = log), data = agg_data)) #both sig
+summary(glm(cnt ~ Year + Count, family = 'quasipoisson', data = agg_data)) #count sig, not year
+
+summary(lm(cnt ~ Year + Count, data = agg_data)) #decreasing by 0.02 cases per year?
+
+#Reliable source? No, both not increasing
+agg_data <- HP_data %>% 
+  filter(Record_Type == 'Sighting' & Reliable_Source != 'Trained_Observer') %>%
+  group_by(Year) %>%
+  dplyr::summarize(cnt = n_distinct(RecordID))
+
+summary(glm.nb(cnt ~ Year, data = agg_data))
+
+#Seasonality
+#Sights
+mean_seas <- HP_data %>%
+  filter(Record_Type == 'Sighting') %>%
+  group_by(Year, Season) %>%
+  summarize(cnt = n_distinct(RecordID)) %>%
+  group_by(Season) %>%
+  summarize(mean = mean(cnt))
+  
+agg_data <- HP_data %>% 
+  filter(Record_Type == 'Sighting') %>%
+  group_by(Year, Season) %>%
+  dplyr::summarize(cnt = n_distinct(RecordID))
+
+summary(glm.nb(cnt ~ Season, data = agg_data))
+summary(lm(cnt ~ Season, contrasts = list(Season = 'contr.sum'), data = agg_data))
+
+#Strands
+mean_seas_strands <- HP_data %>%
+  filter(Record_Type == 'Stranding') %>%
+  group_by(Year, Season) %>%
+  summarize(cnt = n_distinct(RecordID)) %>%
+  group_by(Season) %>%
+  summarize(mean = mean(cnt))
+  
+agg_data <- HP_data %>% 
+  filter(Record_Type == 'Stranding') %>%
+  group_by(Year, Season) %>%
+  dplyr::summarize(cnt = n_distinct(RecordID))
+
+summary(glm.nb(cnt ~ Season, data = agg_data))
+summary(lm(cnt ~ Season, contrasts = list(Season = 'contr.sum'), data = agg_data))
+
+```
+
+**Harbor Seal Abundance and Distribution from Opportunistic Sightings and Strandings in the Salish Sea, Washington**  
+
+*Abstract*  
+- 
+
+*Introduction*  
+Understanding cetacean abundance and distribution is essential for conservation and management, but deriving accurate and updated estimates can be resource intensive. Population abundance and distribution can be examined and estimated in a number of ways, balancing funding availability, data availability, desired statistical accuracy, and the life history characteristics of the species. 
+
+Abundance estimates can be modeled using data from dedicated design-based surveys (mark-recapture, photo identification, line transect surveys) or from more cost effective (though less statistically robust) approaches using data from platforms of opportunity or stranding records. The latter approach can provide baseline species presence information where no data would exist otherwise. 
+
+design-based vs spatial model-based
+o	Some methods are more expensive than others, they all have advantages and disadvantages
+
+Harbor porpoises are a common study organism for this very issue
+o	Comparing results of different abundance and distribution modeling techniques
+♣	Results are generally compared, not combined; methods generally match up
+o	One of the most abundant and cosmopolitan cetacean around the world
+
+Close to home – harbor porpoises in the pacific northwest
+o	Importance of this study/methodology/results
+
+*Methods*  
+Study area - The study area includes inland waters spanning Puget Sound, the Salish Sea, and the Strait of Juan de Fuca in Washington State and British Columbia. The study area was subdivided into `r HP_data %>% summarize(n_distinct(Quadrant))` survey grid quadrants.
+
+Data sources and characterization - Sightings records from 1976 to 2014 were compiled from [insert details]. Stranding records were compiled from [insert details].
+
+Sighting and stranding records include the date, latitude, longitude, survey quadrant location, numerous reporting sources, and observation condition (dead or alive). Sighting records additionally contain an estimated number of individuals included in the sighting (*i.e*, group size). Record source (*i.e.*, reporting entity) was grouped into "trained observers" (including X and Y) and "other public sources" (including X, Y, Z). Group size was binned into the following categories: 1-4 individuals, 5-9, 10-24, 25-49, 50-99, 100+. All records were seasonally categorized as occurring in spring (Mar-May), summer (Jun-Aug), fall (Sep-Nov), and winter (Dec-Feb). The mean latitude and longitude values of records in a given quadrant were applied to records in that quadrant where location data were missing. Missing latitude and longitude data in a given quadrant were replaced with the mean latitude and longitude values of records in that quadrant.
+
+Statistical analyses - To examine temporal changes in the number of sightings and strandings over the study period, negative binomial generalized linear models (GLM) were examined with year as the predictor and the number of records as the response. Quadrant and reporting source were also examined as possible predictors to examine data consistency over time.
+ 
+Kernel density maps were created using the statdensity function in R and depict sighting and stranding record clusters by season and reporting source. Maps depicting the total number of records and mean sighting group size per quadrant were created using the ggplot2 function in R. 
+
+*Results*  
+From 1976 to 2014, there were a total of `r HP_data %>% filter(Record_Type == "Stranding") %>% summarize(n_distinct(RecordID))` harbor porpoise strandings and `r HP_data %>% filter(Record_Type == "Sighting") %>% summarize(n_distinct(RecordID))` sightings for a combined total of `r n_distinct(HP_data$RecordID)` records reported from `r HP_data %>% summarize(n_distinct(Quadrant))` unique survey quadrants. Trained stranding responders accounted for `r round(overall_counts[overall_counts$Record_Type == 'Stranding', 'Trained_Observer']/(HP_data %>% filter(Record_Type == "Stranding") %>% summarize(n_distinct(RecordID))), 2)*100`% of stranding records, and likewise accounted for `r round(overall_counts[overall_counts$Record_Type == 'Sighting', 'Trained_Observer']/(HP_data %>% filter(Record_Type == "Sighting") %>% summarize(n_distinct(RecordID))), 2)*100`% of sightings records, with the remainder being reported by the public. Over the study period, the mean group size of sightings was `r round(mean(HP_data[HP_data$Record_Type == 'Sighting', "Count"], na.rm = T), 1)` individuals. Smaller group sizes were more common, with `r HP_data %>% filter(Record_Type == 'Sighting' & Count < 5) %>% summarize(n_distinct(RecordID))` records containing less than five individuals and `r HP_data %>% filter(Record_Type == 'Sighting' & Count > 49) %>% summarize(n_distinct(RecordID))` records containing more than 50 individuals (Table). Mean group size of sightings made by trained observers was `r round(HP_data %>% filter(Record_Type == 'Sighting' & Reliable_Source == 'Trained_Observer') %>% summarize(mean(Count, na.rm = T)), 1)` individuals, compared to `r round(HP_data %>% filter(Record_Type == 'Sighting' & Reliable_Source != 'Trained_Observer') %>% summarize(mean(Count, na.rm = T)), 1)` group size of sightings reported from the public.  
+
+Temporal patterns - The number of sightings has not significantly increased over time (p > 0.05; `r figs("yr_type_source", display = 'cite')`), though group size was a significant predictor of reported sightings (y = -0.02x, t = -2.17, p < 0.05), suggesting a slight decrease in the number of individuals per sighting over time. 
+
+Annual strandings increased significantly over time (y = 1.084^x^, z = 4.6, p < 0.001), ranging from `r round(HP_data %>% filter(Year < 2000 & Record_Type == 'Stranding') %>% summarize(n_distinct(RecordID))/(2000-1976), 1)` individuals per year prior to 2000 and `r round(HP_data %>% filter(Year > 1999 & Record_Type == 'Stranding') %>% summarize(n_distinct(RecordID))/(2014-2000), 1)` per year after 2000 (`r figs("yr_type_source", display = 'cite')`). Quadrant (*i.e.*, stranding location) was not a significant predictor of increasing strandings, suggesting that strandings have increased uniformly across space. 
+
+Seasonal patterns – Sightings are significantly higher in the summer (`r round(mean_seas[mean_seas$Season == 'Summer', 'mean'], 1)` per month; y = 7.7x, t = 3.6, p < 0.001) compared to `r round(mean_seas[mean_seas$Season == 'Spring', 'mean'], 1)` in spring and fall and `r round(mean_seas[mean_seas$Season == 'Winter', 'mean'], 1)` in winter (`r figs("records_seas_source", display = 'cite')`). Strandings are significantly higher in the spring (specifically May) (`r round(mean_seas_strands[mean_seas_strands$Season == 'Spring', 'mean'], 1)` per month; y = 7.7x, t = 3.6, p < 0.001) compared to the other seasons `r round(mean_seas_strands[mean_seas_strands$Season == 'Summer', 'mean'], 1)` in summer and fall and `r round(mean_seas_strands[mean_seas_strands$Season == 'Winter', 'mean'], 1)` in winter (`r figs("records_seas_source", display = 'cite')`). 
+
+Spatial patterns – Sightings were distributed across `r quad_sight_counts %>% summarize(n_distinct(Quadrant))` quadrants. The total number of sightings was highest on the western side of San Juan Island (quadrant 181, 48.504N -123.134W, `r quad_sight_counts[quad_sight_counts$Quadrant == '181', 'cnt']` reports) and the northeastern tip of San Juan Island (quadrant 167, 48.624N, -123.076W, `r quad_sight_counts[quad_sight_counts$Quadrant == '167', 'cnt']` reports; and quadrant 192, 48.609N, -123.030W, `r quad_sight_counts[quad_sight_counts$Quadrant == '192', 'cnt']` reports) (`r figs("map_records_size", display = 'cite')`). Only `r round(quad_sight_counts %>% filter(cnt > 9) %>% summarize(n_distinct(Quadrant))/(quad_sight_counts %>% summarize(n_distinct(Quadrant))), 2)*100`% of quadrants had 10 or more sightings over the study period. Quadrants with the larger reported mean sighting group size do not overlap with quadrants with the largest number of records, as some quadrants may have had one very large sighting while others have numerous sightings of less than five individuals (`r figs("map_group_size", display = 'cite')`). 
+
+Strandings were distributed across `r quad_strands_counts %>% summarize(n_distinct(Quadrant))` quadrants. The total number of strandings was highest in waters between San Juan and Lopez Islands (quadrant 187, 48.506N, -122.964W, `r quad_strands_counts[quad_strands_counts$Quadrant == '187', 'cnt']` reports; and quadrant 186, 48.448N, -122.942W, `r quad_strands_counts[quad_strands_counts$Quadrant == '186', 'cnt']` reports), and the western side of San Juan Island (quadrant 181, 48.504N -123.134W, `r quad_strands_counts[quad_strands_counts$Quadrant == '181', 'cnt']` reports). Only `r round(quad_strands_counts %>% filter(cnt > 5) %>% summarize(n_distinct(Quadrant))/(quad_strands_counts %>% summarize(n_distinct(Quadrant))), 2)*100`% of quadrants more than five strandings over the study period.
+
+The distribution of sightings and strandings is nearly identical from both trained observers and other public reporting sources, with primary clusters centered in the San Juan Islands and an additional cluster near Whidbey Island reported from trained observers (`r figs("map_source_zoom", display = 'cite')`). Sightings clusters were similar across seasons with the exception of winter, where there were fewer total records and an additional cluster around Whidbey Island (`r figs("map_source_zoom", display = 'cite')`), possibly due to the presence of a dedicated survey or other research project. Stranding records were most broadly distributed in the fall and most constricted in winter, though clusters all overlapped in San Juan Island waters (`r figs("map_source_zoom", display = 'cite')`). The spatial distribution of sightings and strandings did not significantly change over time, as suggested above. 
+
+*Figures*    
 
 ```{r}
-sights_yr_source
+yr_type_source
 ```
 
-All sightings and strandings by report source.
+`r figs("yr_type_source", caption = "Number of sightings and strandings per year from trained observers (solid) and other public reporting sources (dashed).")`
 
 ```{r}
-sights_mo_source
+records_seas_source
 ```
 
-All sightings and strandings summed across months by report source.
-
-```{r}
-sights_seas_source
-```
-All sightings and strandings summed across seasons by report source.
+`r figs("records_seas_source", caption = "Sum of sightings and strandings reported in each season by trained observers (black) and other public reporting sources (grey).")`
 
 
 ```{r}
-sights_yr_type
+records_mo_type
 ```
 
-All records per year according to whether they are strandings or sightings.
+Do we like month better than season? Combined rather than broken into sightings vs strandings?
+
 
 ```{r}
-sights_mo_type
+records_seas_mean
 ```
 
-All sightings and strandings summed across months by type of record.
+Do we like mean boxplots rather than total bar chars?
+
 
 ```{r}
-sights_seas_type
+map_records_size
 ```
 
-All sightings and strandings summed across seasons by type of record.
+`r figs("map_records_size", caption = "Symbols representing quadrant locations where sightings have occurred over the study period, with darker colors representing quadrants with a larger number of total sightings records.")`
 
 ```{r}
-sights_month_mean
+map_group_size
 ```
 
-Basic boxplot showing interannual variation within months.
+`r figs("map_group_size", caption = "Symbols representing quadrant locations where sightings have occurred over the study period, with darker colors representing quadrants with larger mean sighting group size.")`
 
 ```{r}
-sights_seas_mean
+map_source_zoom
 ```
 
-Basic boxplot showing interannual variation within seasons.
+`r figs("map_source_zoom", caption = "Kernel density clusters of strandings and sightings from trained observers and other reporting sources.")`
 
-###Maps  
 
 ```{r}
-allsights
+map_seasons_zoom
 ```
+`r figs("map_seasons_zoom", caption = "Kernel density clusters of sightings and strandings during each season of the year.")`
 
-All sightings and strandings, each dot represents a unique record. 
+```{r archive figures, include = FALSE}
 
-```{r}
-allsights_quadsize
+# ###all records jitter, facet - record type
+# map_type <-
+#   ggmap(get_map(location = WAbox, source = "google", maptype = "terrain")) +
+#   geom_jitter(data = HP_data, aes(x = long_all, y = lat_all), 
+#               width = .1, height = .1, size = .7, alpha = .5, color = 'grey50') +
+# scale_alpha(range = c(0, 0.3), guide = FALSE) +
+#   xlab("") + ylab("") +
+#   theme(
+#     axis.line = element_blank(),
+#     axis.ticks = element_blank(),
+#     axis.text = element_blank(),
+#     strip.text = element_text(size = 10),
+#     strip.background = element_blank(),
+#     panel.border = element_rect(colour = "black", fill = NA, size = 5)) +
+#  facet_wrap(~ Record_Type) 
+# 
+# #Record type - heatmap color
+# map_type_zoom <- 
+#   ggmap(get_map(location = pugetbox, source = "google", maptype = "terrain")) +
+#   geom_jitter(data = HP_data, aes(x = long_all, y = lat_all), 
+#               width = .1, height = .1, size = 0.3, alpha = .3, col = 'grey50')  +
+#   stat_density2d(data = HP_data, aes(x = long_all, y = lat_all, color = Record_Type), 
+#               bins = 4, size = .8) + scale_color_manual(values = color2) +
+#   theme(legend.text = element_text(size = 11),
+#     axis.title = element_blank(),
+#     axis.ticks = element_blank(),
+#     axis.text = element_blank(), 
+#     axis.line = element_blank(),
+#     legend.title = element_blank(),
+#     legend.position = 'bottom')
+#figs("map_type", caption = "Kernel density clusters of sightings and strandings over the study period.")
+
+# #counts per year
+# records_yr <- ggplot(data = numberperyear, aes(x = Year, y = cnt)) + 
+#   geom_line() +
+#   geom_smooth( method = "loess", se = FALSE, col = 'black', size = 0.8, linetype = 3) +
+#   xlab("") + ylab("Annual Sightings") +
+#   scale_y_continuous(labels = comma) +
+#   scale_x_continuous(breaks = c(1975, 1980, 1985, 1990, 1995, 2000, 2005, 2010, 2015)) +
+#   fig_theme() 
+# 
+# #Line plot for sum of monthly counts
+# records_month_tot <- ggplot(data = numberpermonth %>% group_by(Month) %>% summarize(cnt = sum(cnt)), 
+#                        aes(x = factor(Month), y = cnt)) + 
+#   geom_bar(stat = 'identity') +
+#   xlab("") + ylab("Total Monthly Sightings") +
+#   scale_y_continuous(labels = comma) +
+#   fig_theme() 
+# 
+# #Bar for sum of seasonal counts
+# records_seas_tot <- ggplot(data = numberperseason %>% group_by(Season) %>% summarize(cnt = sum(cnt)), 
+#                        aes(x = factor(Season), y = cnt)) + 
+#   geom_bar(stat = 'identity') +
+#   xlab("") + ylab("Total Seasonal Sightings") +
+#   scale_y_continuous(labels = comma) +
+#   fig_theme() 
+# 
+  
+
 ```
-
-All sightings and strandings per quadrant, each dot representing sum of records in that quadrant, with darker colors representing quadrants with a greater number of records.
-
-```{r}
-allsights_quadsize_puget
-```
-
-Same as above, zoomed in.
-
-```{r}
-allsights_group_size
-```
-
-All sightings and strandings, with each dot representing a unique record of a certain group size.
-
-```{r}
-allsights_source
-```
-
-All sightings and strandings, with each dot representing a unique record.
-
-```{r}
-allsights_type_heatmap
-```
-
-Kernel density plot map showing mostly overlapping hotspots for sightings and strandings.
-
-```{r}
-allsights_seasons_heatmap
-```
-
-Kernel density plot map showing mostly overlapping hotspots for sightings and strandings Spring, Summer, and Fall, with more broadly distributed records during the Winter. These kernel density contour lines aren't to scale (i.e. many fewer records in winter).
-

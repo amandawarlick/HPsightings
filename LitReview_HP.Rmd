@@ -1,0 +1,11 @@
+---
+title: "LitReview_HP"
+output: word_document
+---
+
+Kashner et al. 2012
+"Focusing only on visual line-transect surveys our maps obviously do not reflect all research efforts or represent the complete current state of knowledge about cetacean occurrence and abundance. A full representation of all available information in a common framework, however, will require the development of methods to convert other types of data, either from other monitoring methods or opportunistic sources into a common, area-independent currency (i.e. density)."
+
+Bucker et al 1993
+
+
