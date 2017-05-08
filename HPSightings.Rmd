@@ -4,16 +4,18 @@ author: ""
 output: 
   word_document:
     reference_docx: mytemplate.docx
+
 ---
 
 ```{r include = FALSE}
-knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE, results = 'asis', fig.width = 5.5, fig.height = 5)
+knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE, results = 'asis', fig.width = 5.5, fig.height = 5, citr.use_betterbiblatex = FALSE)
 ```
 
 ```{r load packages, include = FALSE, results = 'hide'}
 
 library(devtools)
 library(tidyr)
+library(citr)
 library(ggmap)
 library(data.table)
 library(ggfortify)
@@ -531,23 +533,95 @@ summary(lm(cnt ~ Season, contrasts = list(Season = 'contr.sum'), data = agg_data
 **Harbor Seal Abundance and Distribution from Opportunistic Sightings and Strandings in the Salish Sea, Washington**  
 
 *Abstract*  
-- 
+
 
 *Introduction*  
-Understanding cetacean abundance and distribution is essential for conservation and management, but deriving accurate and updated estimates can be resource intensive. Population abundance and distribution can be examined and estimated in a number of ways, balancing funding availability, data availability, desired statistical accuracy, and the life history characteristics of the species. 
+Understanding cetacean abundance and distribution is essential for conservation and management, but deriving accurate and updated estimates can be resource intensive. Population abundance and distribution can be examined and estimated in a number of ways, balancing funding availability, data availability, desired statistical accuracy, and the life history characteristics of the species. One of those approaches involves modelling population estimates using data gathered from what have been termed "platforms of opportunity", where animals are sighted and recorded from ferries, fishing vessels, the Coast Guard, and a variety of other possible sources. While these data are not as statistically robust as those from design-based approaches such as aerial or ship-based surveys (due to non-randomization of survey track, range of expertise, ), it is a cost-effective way of obtaining information in situations where little to no data would exist otherwise (Aragones et al., 1997; Silva et al., 2003; Williams et al., 2006; Thomas et al., 2007; Dawson et al., 2008; Williams & Thomas, 2009). Another benefit of using data from platforms of opportunity could be the ability to capture seasonal trends in cetacean density and distribution more effectively than an annual ship-based or aerial survey (Seibert et al., 2006). Additionally, opportunistic sampling can be a lower-cost training opportunity and opportunity to fine-tune sampling protocols, correction factors, and estimates of bias in the distance-sampling process (Williams et al., 2007). Researchers have used this technique around the world and have developed best practice guidelines (Thomas et al., 2002; Evans & Hammond, 2004; Redfern et al., 2006). 
 
-Abundance estimates can be modeled using data from dedicated design-based surveys (mark-recapture, photo identification, line transect surveys) or from more cost effective (though less statistically robust) approaches using data from platforms of opportunity or stranding records. The latter approach can provide baseline species presence information where no data would exist otherwise. 
+Most commonly, cetacean abundance and distribution estimates are modeled using multiple data sources across multiple timeframes and the resulting estimates are compared or used to create an overall range. Harbor porpoises (*Phocoena phocoena*), being one of the most widely distributed cosmopolitan cetacean species, is a common subject of using and comparing both design-based and model-based approaches that include data from survey transects, opportunistic sightings, and stranding data (Mikkelsen et al., 2016). Harbor porpoise presence and distribution in German waters was examined from the 1980s into the early 2000s using data from aerial surveys, incidental sightings, and stranding data, with estimates matching across modeling approaches (Siebert et al., 2006). The abundance and distribution of humpback, fin, and minke whales was estimated using cruise ships as platforms of opportunity in the Southern Ocean over two austral summers in 2001 and 2002 (Williams et al., 2006), being a prime example of the utility of cost-effective approaches in remote areas. Off the coast of Chile, researchers studying blue whales developed a broadly-applicable framework to estimate variance and uncertainty in spatial modeling aimed at deriving abundance estimates (Williams et al., 2011). Off the coast of northwestern France, data from opportunistic sightings, aerial surveys, and strandings were used to ascertain that harbor porpoises had a renewed presence in the area (Jung et al., 2009). 
 
-design-based vs spatial model-based
-o	Some methods are more expensive than others, they all have advantages and disadvantages
-
-Harbor porpoises are a common study organism for this very issue
-o	Comparing results of different abundance and distribution modeling techniques
-♣	Results are generally compared, not combined; methods generally match up
-o	One of the most abundant and cosmopolitan cetacean around the world
 
 Close to home – harbor porpoises in the pacific northwest
 o	Importance of this study/methodology/results
+
+*Discussion*  
+
+Calambokidis: outer wa coast 95-02, mean group size of 2.3, max 20, more coastal water compared to other species.
+
+Siebert: mean group size 2.2-2.5 max 40
+
+Williams et al 2006 - can further use information to understand WHY animals are there (spatial modeling)
+
+Williams et al 2011 - framework for variance estimator
+
+Success of opportunistic somewhat has to do with behavior of species (Jung suggest non-distinct/unremarkable HP behavior reason why only 9% sightings in opp = hp)
+
+Peschko et al. 2016 - highest density of hp in southern North Sea in spring
+
+Data could be used in more complex habitat spatial prediction modeling (Hedley et al., 1999; Hedley & Buckland, 2004). Redfern et al., 2006.
+
+Spatial - Need to follow certain guidelines - range of habitat variability and trained observers Cañadas et al.
+
+Spatial - developed by Buckland  et  al.  2004 (line transect + animal rel to env factors + detection probability; de Segura)
+
+Benefits of model-based - compared/matched up with survey-based for striped dolphins in mediterranean (de Segura et al 2007.)
+
+Biggest weakness is lack of effor data, as that prevents it to being converted into a common currency that could be combined with line transect survey estimates; existing data from line transect surveys around the world is patchy - majority of effort concentrated in relatively small areas - need to combine what we have to scale up to broader spatial scales (Kaschner et al., 2012).
+
+
+*References* 
+
+Aragones, L.V., Jefferson, T.A., and Marsh, H. 1997. Marine mammal survey techniques applicable in developing countries. Asian Marine Biology 14: 15-39.
+
+Borchers et al. .2002.
+
+Brereton, T., Williams, A.D. & Williams, R. (2000) A low-cost method to determine bathypelagic and seasonal occupancy of fin whale Balaenoptera physalus in the Bay of Biscay, In: European Research on Cetaceans – 14 (Ed. by P.G.H. Evans), pp. 14–18. European Cetacean Society, Rome, Italy.
+
+Bucker et al 1993
+
+Calambokidis. 2004
+
+Cañadas A, Sagarminaga R, De Stephanis R, Urquiola E, Hammond PS. 2005. Habitat preference modelling as a conservation tool: proposals for marine protected areas for cetaceans in southern Spanish waters. Aquat Conserv 15: 495–521.
+
+Dawson, S., Wade, P., Slooten, E. and Barlow, J. 2008. Design and field methods for sighting surveys of cetaceans in coastal and riverine habitats. Publications, Agencies and Staff of the U.S. Department of Commerce. Paper 255. http://digitalcommons.unl.edu/usdeptcommercepub/255.
+
+de Segura, A.G, Hammond, P.S., Canadas, A., & Raga, J.A. 2007. Comparing cetacean abundance estimates derived from spatial models and design-based line transect methods. Marine Ecology Progress Series 329: 289-299.
+
+Evans, P.G. and Hammond, P.S. 2004. Monitoring cetaceans in European waters. Mammal Review 34(1), 131 – 156.
+
+Hedley, S.L., Buckland, S.T., & Borchers, D.L. 1999. Spatial modelling from line transect data: Journal of Cetacean Research and Management 1(3): 255-264. 
+
+Hedley, S.L. & Buckland, S.T. 2004. Spatial models for line transect sampling. Journal of Agricultural, Biological, and Environmental Statistics, 9(2): 181–199. DOI: 10.1198/1085711043578.
+
+Jung, J.L., Stephan, E., Louis, M., Alfonsi, E., Liret, C., Carpentier, F.G., & Hassani, S. 2009. Harbour porpoises (Phocoena phocoena) in north-western France: aerial survey, opportunistic sightings and strandings monitoring. Journal of the Marine Biological Association of the United Kingdom, 89(5): 1045-1050. 
+
+Kaschner K, Quick NJ, Jewell R, Williams R, Harris CM. 2012. Global Coverage of Cetacean Line-Transect Surveys: Status Quo, Data Gaps and Future Challenges. PLoS ONE 7(9): e44075. DOI: 10.1371/journal.pone.0044075
+
+--Leaper, R., Fairbairns, R., Gordon, J., Hiby, A., Lovell, P. and Papastavrou, V. (1997). Analysis of data collected from a whalewatching operation to assess relative abundance and distribution of the minke whale (*Balaenoptera acutorostrata*) around the Isle of Mull, Scotland. Reports of the International Whaling Commission 47: 505-511.
+
+--Marques, F.F.C. (2001). Estimating Wildlife Distribution and Abundance from Line Transect Surveys Conducted from Platforms of Opportunity. Unpublished Ph.D. thesis, University of St. Andrews, Scotland.
+
+Mikkelsen L, Rigét FF, Kyhn LA, Sveegaard S, Dietz R, Tougaard J, et al. (2016) Comparing Distribution of Harbour Porpoises (Phocoena phocoena) Derived from Satellite Telemetry and Passive Acoustic Monitoring. PLoS ONE 11(7): e0158788. doi:10.1371/journal.pone.0158788 
+
+Peschko, V., Ronnenberg, K., Siebert, U., & Gilles, A. 2016. Trends of harbour porpoise (Phocoena phocoena) density in the southern North Sea. Ecological Indicators 60: 174–183. 
+
+Redfern et al. 2006. Techniques for cetacean– habitat modeling. Marine Ecology Progress Series 310: 271-295.
+
+Siebert U., Gilles A., Lucke K., Ludwig M., Benke H., Kock K.H. and Scheidat M. (2006). A decade of harbour porpoise occurrence in German waters – analyses of aerial surveys, incidental sightings and
+strandings. Journal of Sea Research 56, 65–80. 
+
+Silva, et. al. 2003. Occurrence and distribution of cetaceans in the waters around the Azores (Portugal), Summer and Autumn 1999–2000. Aquatic Mammals, 29.1: 77–83.
+
+Thomas, L., Williams, R., & Sandilands, D. 2007. Designing line transect surveys for complex survey regions. Journal of Cetacean Resource Management 9(1): 1-13.
+
+Williams, R., S. L. Hedley, and P. S. Hammond. 2006. Modeling distribution and abundance of Antarctic
+baleen whales using ships of opportunity. Ecology and Society 11 (1): 1.
+
+Williams, R., Leaper, R., Zerbini, A.N., & Hammond, P.S. 2007. Methods for investigating measurement error in cetacean line-transect surveys. Journal of the Marine Biological Association of the United Kingdom, 87: 313–320.
+
+Williams, R. & Thomas, L. 2009. Cost-effective abundance estimation of rare animals: Testing performance of small-boat surveys for killer whales in British Columbia. Biological Conservation 142(7): 1542-1547.
+
+Williams, R., Hedley, S.L., Branch, T.A., Bravington, M.V., Zerbini, A.N. and Findlay, K.P. 2011. Chilean Blue Whales as a Case Study to Illustrate Methods to Estimate Abundance and Evaluate Conservation Status of Rare Species. Conservation Biology, 25: 526–535. doi:10.1111/j.1523-1739.2011.01656.x
 
 *Methods*  
 Study area - The study area includes inland waters spanning Puget Sound, the Salish Sea, and the Strait of Juan de Fuca in Washington State and British Columbia. The study area was subdivided into `r HP_data %>% summarize(n_distinct(Quadrant))` survey grid quadrants.
