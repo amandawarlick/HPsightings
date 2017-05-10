@@ -266,7 +266,9 @@ quadrant_counts <- HP_data %>%
 #all quadtrants - sightings only
 map_records_size <- 
   ggmap(get_map(location = WAbox, source = "google", maptype = "terrain")) +
-  geom_point(data = quadrant_counts, aes(x = mean_long, y = mean_lat, color = Records, size = Records, alpha = .9)) +
+  geom_point(data = quadrant_counts, aes(x = mean_long, y = mean_lat, color = Records, 
+                                         #size = Records, 
+                                         alpha = .9)) +
 scale_alpha(range = c(0.6, 0.9), guide = FALSE) +
   xlab("") + ylab("") +
   theme(legend.text = element_text(size = 10), 
@@ -279,7 +281,8 @@ scale_alpha(range = c(0.6, 0.9), guide = FALSE) +
     legend.position = 'top',
     panel.border = element_rect(colour = "black", fill = NA, size = 5)) + 
   scale_color_continuous(trans = 'reverse') + 
-  guides(color = guide_legend("Records"), size = guide_legend("Records"))
+  guides(color = guide_legend("Records")) 
+         #size = guide_legend("Records"))
 
 figs("map_records_size", caption = "Symbols representing quadrant locations where sightings have occurred over the study period, with darker colors representing quadrants with a larger number of total sightings records.")
 
@@ -530,112 +533,42 @@ summary(lm(cnt ~ Season, contrasts = list(Season = 'contr.sum'), data = agg_data
 
 ```
 
-**Harbor Seal Abundance and Distribution from Opportunistic Sightings and Strandings in the Salish Sea, Washington**  
+**Harbor Porpoise Abundance and Distribution from Opportunistic Sightings and Strandings in the Salish Sea, Washington**  
 
 *Abstract*  
-
+- Abundance and distribution are essential for conservation and management.    
+- Spatial modeling techniques can be used to derive abundance and distribution estimates at a lower cost using data from opportunistic sightings or "platforms of opportunity".  
+- This study aims to describe and characterize `r n_distinct(HP_data$RecordID)` harbor porpoise sightings and strandings records compiled from a range of sources from 1976 to 2014 in the Salish Sea, including the inland waters of northern Washington and western British Columbia.   
+- Over the study period, `r round(HP_data %>% filter(Record_Type == "Sighting") %>% summarize(n_distinct(RecordID))/(n_distinct(HP_data$RecordID)), 2)*100`% of the records were sightings records, and the mean group size was `r round(mean(HP_data[HP_data$Record_Type == 'Sighting', "Count"], na.rm = T), 1)` individuals.    
+- The number of sightings was highest in the summer and the number of strandings was highest in the spring.    
+- Both sightings and strandings were concentrated around the San Juan Islands, and the spatial distribution of reported sightings was similar between trained observers and other public reporting sources.  
+- The high degree of agreement/spatial overlap across years, seasons, reporting sources, and record type (stranding vs. sighting) is evidence that these data should be considered reliable and could be used in future spatial modeling to examine changes in abundance, distribution, or projected human impacts over time in a region where not a lot is known about the presence of this species.  
 
 *Introduction*  
-Understanding cetacean abundance and distribution is essential for conservation and management, but deriving accurate and updated estimates can be resource intensive. Population abundance and distribution can be examined and estimated in a number of ways, balancing funding availability, data availability, desired statistical accuracy, and the life history characteristics of the species. One of those approaches involves modelling population estimates using data gathered from what have been termed "platforms of opportunity", where animals are sighted and recorded from ferries, fishing vessels, the Coast Guard, and a variety of other possible sources. While these data are not as statistically robust as those from design-based approaches such as aerial or ship-based surveys (due to non-randomization of survey track, range of expertise, ), it is a cost-effective way of obtaining information in situations where little to no data would exist otherwise (Aragones et al., 1997; Silva et al., 2003; Williams et al., 2006; Thomas et al., 2007; Dawson et al., 2008; Williams & Thomas, 2009). Another benefit of using data from platforms of opportunity could be the ability to capture seasonal trends in cetacean density and distribution more effectively than an annual ship-based or aerial survey (Seibert et al., 2006). Additionally, opportunistic sampling can be a lower-cost training opportunity and opportunity to fine-tune sampling protocols, correction factors, and estimates of bias in the distance-sampling process (Williams et al., 2007). Researchers have used this technique around the world and have developed best practice guidelines (Thomas et al., 2002; Evans & Hammond, 2004; Redfern et al., 2006). 
+Understanding cetacean abundance and distribution is essential for conservation and management, but deriving accurate and timely estimates can be resource intensive. Population abundance and distribution can be estimated in a number of ways, balancing funding availability, data availability, and the life history characteristics of the species. One approach involves modeling population estimates using data gathered from what have been termed "platforms of opportunity", where animals are sighted and recorded from ferries, fishing vessels, the Coast Guard, and a variety of other possible sources (Aragones et al., 1997; Hedley et al., 1999; Marques, 2001; Williams, 2003). While these data are not as statistically robust as those from design-based approaches such as aerial or ship-based line transect surveys (due to non-randomization of survey track, range of expertise, etc.), it is a cost-effective way of obtaining information in situations where little to no data would exist otherwise (Leaper et al., 1997; Silva et al., 2003; Williams et al., 2006; Thomas et al., 2007; Dawson et al., 2008; Peschko et al., 2016). 
 
-Most commonly, cetacean abundance and distribution estimates are modeled using multiple data sources across multiple timeframes and the resulting estimates are compared or used to create an overall range. Harbor porpoises (*Phocoena phocoena*), being one of the most widely distributed cosmopolitan cetacean species, is a common subject of using and comparing both design-based and model-based approaches that include data from survey transects, opportunistic sightings, and stranding data (Mikkelsen et al., 2016). Harbor porpoise presence and distribution in German waters was examined from the 1980s into the early 2000s using data from aerial surveys, incidental sightings, and stranding data, with estimates matching across modeling approaches (Siebert et al., 2006). The abundance and distribution of humpback, fin, and minke whales was estimated using cruise ships as platforms of opportunity in the Southern Ocean over two austral summers in 2001 and 2002 (Williams et al., 2006), being a prime example of the utility of cost-effective approaches in remote areas. Off the coast of Chile, researchers studying blue whales developed a broadly-applicable framework to estimate variance and uncertainty in spatial modeling aimed at deriving abundance estimates (Williams et al., 2011). Off the coast of northwestern France, data from opportunistic sightings, aerial surveys, and strandings were used to ascertain that harbor porpoises had a renewed presence in the area (Jung et al., 2009). 
+Like all survey methods, using opportunistic sightings has advantages and disadvantages. Data from platforms of opportunity can capture seasonal trends in cetacean density and distribution more effectively than an annual ship-based or aerial survey (Seibert et al., 2006). Additionally, opportunistic sampling can be used in pilot studies to identify areas of high density cetacean habitat use that can then be prioritized in future targeted line transect surveys, mark-recapture studies, or habitat modeling (Koshure, 2012). Opportunistic sampling can also be a lower-cost way of training observers and fine-tuning distance sampling protocols, correction factors, and estimates of bias (Williams et al., 2007; Koshure, 2012). Disadvantages of the approach include the limitations of modeling applications when effort information is not systematically documented or data are not gathered from a range of habitat areas (Buckland et al., 2001; Evans & Hammond 2004; Cañadas et al., 2005; Kaschner et al, 2012; Williams et al 2011). Researchers have used this technique around the world and have developed best practice guidelines (Thomas et al., 2002; Evans & Hammond, 2004; Redfern et al., 2006).  
 
+Most commonly, cetacean abundance and distribution estimates are modeled using multiple data sources across multiple timeframes and the resulting estimates are compared or used to create an overall range. Harbor porpoise (*Phocoena phocoena*), being one of the most widely distributed cosmopolitan cetacean species, is a common subject of using and comparing both design-based and model-based approaches that include data from line transect surveys, opportunistic sightings, and strandings. Harbor porpoise presence and distribution in German waters was examined from the 1980s into the early 2000s using data from aerial surveys, incidental sightings, and strandings, with estimates matching across modeling approaches (Siebert et al., 2006). The abundance and distribution of humpback, fin, and minke whales was estimated using cruise ships as platforms of opportunity in the Southern Ocean over two austral summers in 2001 and 2002 (Williams et al., 2006), being a prime example of the utility of cost-effective approaches in remote areas. Off the coast of Chile, researchers studying blue whales developed a broadly-applicable framework to estimate variance and uncertainty in spatial modeling aimed at deriving abundance estimates (Williams et al., 2011). Off the coast of northwestern France, data from opportunistic sightings, aerial surveys, and strandings were used to ascertain that harbor porpoises had a renewed presence in the area (Jung et al., 2009). In the eastern tropical Pacific, abundance and distribution of offshore spotted dolphins has been estimated by applying generalized additive modeling of oceanographic variables and opportunistic sightings data from commercial fishing vessels (Buckland et al., 1992; Marques, 2001; Lennert-Cody et al., 2016).
 
-Close to home – harbor porpoises in the pacific northwest
-o	Importance of this study/methodology/results
+In the Pacific Northwest, harbor porpoise are delineated into two coastal stocks and an inland Washington stock. Aerial and ship-based surveys in addition to anecdotal observations suggest that harbor porpoise presence in inland Washington waters may be growing after a period of unexplained decline throughout the 1980s and 1990s (Carretta et al., 2016). Seasonal presence in the region is also poorly understood, but it is presumed that the stock is not migratory. Opportunistic data have been used to estimate harbor porpoise abundance and examine seasonal distribution patterns around Vancouver Island and inland Washington waters (Keple, 2002; Hall, 2004; Koshure, 2012). Existing harbor porpoise abundance estimates from the late 1990s and 2000s range from 675 (Hall, 2004) to just over 1,200 individuals (Calambokidis et al., 1997) in various sub-regions of inland Washington and British Columbia waters. Estimates for all inland Washington and British Columbia waters combined range from almost 2,900 (Calambokidis et al. 1997) to just over 3,000 indiviuals (Carretta et al., 2016), with a total of just over 9,000 individuals coastwide in British Columbia (Williams & Thomas, 2007).  
 
-*Discussion*  
+This study aims to characterize the spatial and temporal distribution of harbor porpoise sightings and strandings in inland Washington waters from 1976 to 2014 to examine trends over time, seasonality, and consistency between different sighting reporting sources. Similar to other uses of data compiled from platforms of opportunity, we anticipate that spatial modeling techniques could be applied to these data to vastly improve our understanding of harbor porpoise presence, habitat use, and likely impacts of anthropogenic activities in the region. 
 
-Calambokidis: outer wa coast 95-02, mean group size of 2.3, max 20, more coastal water compared to other species.
-
-Siebert: mean group size 2.2-2.5 max 40
-
-Williams et al 2006 - can further use information to understand WHY animals are there (spatial modeling)
-
-Williams et al 2011 - framework for variance estimator
-
-Success of opportunistic somewhat has to do with behavior of species (Jung suggest non-distinct/unremarkable HP behavior reason why only 9% sightings in opp = hp)
-
-Peschko et al. 2016 - highest density of hp in southern North Sea in spring
-
-Data could be used in more complex habitat spatial prediction modeling (Hedley et al., 1999; Hedley & Buckland, 2004). Redfern et al., 2006.
-
-Spatial - Need to follow certain guidelines - range of habitat variability and trained observers Cañadas et al.
-
-Spatial - developed by Buckland  et  al.  2004 (line transect + animal rel to env factors + detection probability; de Segura)
-
-Benefits of model-based - compared/matched up with survey-based for striped dolphins in mediterranean (de Segura et al 2007.)
-
-Biggest weakness is lack of effor data, as that prevents it to being converted into a common currency that could be combined with line transect survey estimates; existing data from line transect surveys around the world is patchy - majority of effort concentrated in relatively small areas - need to combine what we have to scale up to broader spatial scales (Kaschner et al., 2012).
-
-
-*References* 
-
-Aragones, L.V., Jefferson, T.A., and Marsh, H. 1997. Marine mammal survey techniques applicable in developing countries. Asian Marine Biology 14: 15-39.
-
-Borchers et al. .2002.
-
-Brereton, T., Williams, A.D. & Williams, R. (2000) A low-cost method to determine bathypelagic and seasonal occupancy of fin whale Balaenoptera physalus in the Bay of Biscay, In: European Research on Cetaceans – 14 (Ed. by P.G.H. Evans), pp. 14–18. European Cetacean Society, Rome, Italy.
-
-Bucker et al 1993
-
-Calambokidis. 2004
-
-Cañadas A, Sagarminaga R, De Stephanis R, Urquiola E, Hammond PS. 2005. Habitat preference modelling as a conservation tool: proposals for marine protected areas for cetaceans in southern Spanish waters. Aquat Conserv 15: 495–521.
-
-Dawson, S., Wade, P., Slooten, E. and Barlow, J. 2008. Design and field methods for sighting surveys of cetaceans in coastal and riverine habitats. Publications, Agencies and Staff of the U.S. Department of Commerce. Paper 255. http://digitalcommons.unl.edu/usdeptcommercepub/255.
-
-de Segura, A.G, Hammond, P.S., Canadas, A., & Raga, J.A. 2007. Comparing cetacean abundance estimates derived from spatial models and design-based line transect methods. Marine Ecology Progress Series 329: 289-299.
-
-Evans, P.G. and Hammond, P.S. 2004. Monitoring cetaceans in European waters. Mammal Review 34(1), 131 – 156.
-
-Hedley, S.L., Buckland, S.T., & Borchers, D.L. 1999. Spatial modelling from line transect data: Journal of Cetacean Research and Management 1(3): 255-264. 
-
-Hedley, S.L. & Buckland, S.T. 2004. Spatial models for line transect sampling. Journal of Agricultural, Biological, and Environmental Statistics, 9(2): 181–199. DOI: 10.1198/1085711043578.
-
-Jung, J.L., Stephan, E., Louis, M., Alfonsi, E., Liret, C., Carpentier, F.G., & Hassani, S. 2009. Harbour porpoises (Phocoena phocoena) in north-western France: aerial survey, opportunistic sightings and strandings monitoring. Journal of the Marine Biological Association of the United Kingdom, 89(5): 1045-1050. 
-
-Kaschner K, Quick NJ, Jewell R, Williams R, Harris CM. 2012. Global Coverage of Cetacean Line-Transect Surveys: Status Quo, Data Gaps and Future Challenges. PLoS ONE 7(9): e44075. DOI: 10.1371/journal.pone.0044075
-
---Leaper, R., Fairbairns, R., Gordon, J., Hiby, A., Lovell, P. and Papastavrou, V. (1997). Analysis of data collected from a whalewatching operation to assess relative abundance and distribution of the minke whale (*Balaenoptera acutorostrata*) around the Isle of Mull, Scotland. Reports of the International Whaling Commission 47: 505-511.
-
---Marques, F.F.C. (2001). Estimating Wildlife Distribution and Abundance from Line Transect Surveys Conducted from Platforms of Opportunity. Unpublished Ph.D. thesis, University of St. Andrews, Scotland.
-
-Mikkelsen L, Rigét FF, Kyhn LA, Sveegaard S, Dietz R, Tougaard J, et al. (2016) Comparing Distribution of Harbour Porpoises (Phocoena phocoena) Derived from Satellite Telemetry and Passive Acoustic Monitoring. PLoS ONE 11(7): e0158788. doi:10.1371/journal.pone.0158788 
-
-Peschko, V., Ronnenberg, K., Siebert, U., & Gilles, A. 2016. Trends of harbour porpoise (Phocoena phocoena) density in the southern North Sea. Ecological Indicators 60: 174–183. 
-
-Redfern et al. 2006. Techniques for cetacean– habitat modeling. Marine Ecology Progress Series 310: 271-295.
-
-Siebert U., Gilles A., Lucke K., Ludwig M., Benke H., Kock K.H. and Scheidat M. (2006). A decade of harbour porpoise occurrence in German waters – analyses of aerial surveys, incidental sightings and
-strandings. Journal of Sea Research 56, 65–80. 
-
-Silva, et. al. 2003. Occurrence and distribution of cetaceans in the waters around the Azores (Portugal), Summer and Autumn 1999–2000. Aquatic Mammals, 29.1: 77–83.
-
-Thomas, L., Williams, R., & Sandilands, D. 2007. Designing line transect surveys for complex survey regions. Journal of Cetacean Resource Management 9(1): 1-13.
-
-Williams, R., S. L. Hedley, and P. S. Hammond. 2006. Modeling distribution and abundance of Antarctic
-baleen whales using ships of opportunity. Ecology and Society 11 (1): 1.
-
-Williams, R., Leaper, R., Zerbini, A.N., & Hammond, P.S. 2007. Methods for investigating measurement error in cetacean line-transect surveys. Journal of the Marine Biological Association of the United Kingdom, 87: 313–320.
-
-Williams, R. & Thomas, L. 2009. Cost-effective abundance estimation of rare animals: Testing performance of small-boat surveys for killer whales in British Columbia. Biological Conservation 142(7): 1542-1547.
-
-Williams, R., Hedley, S.L., Branch, T.A., Bravington, M.V., Zerbini, A.N. and Findlay, K.P. 2011. Chilean Blue Whales as a Case Study to Illustrate Methods to Estimate Abundance and Evaluate Conservation Status of Rare Species. Conservation Biology, 25: 526–535. doi:10.1111/j.1523-1739.2011.01656.x
 
 *Methods*  
 Study area - The study area includes inland waters spanning Puget Sound, the Salish Sea, and the Strait of Juan de Fuca in Washington State and British Columbia. The study area was subdivided into `r HP_data %>% summarize(n_distinct(Quadrant))` survey grid quadrants.
 
 Data sources and characterization - Sightings records from 1976 to 2014 were compiled from [insert details]. Stranding records were compiled from [insert details].
 
-Sighting and stranding records include the date, latitude, longitude, survey quadrant location, numerous reporting sources, and observation condition (dead or alive). Sighting records additionally contain an estimated number of individuals included in the sighting (*i.e*, group size). Record source (*i.e.*, reporting entity) was grouped into "trained observers" (including X and Y) and "other public sources" (including X, Y, Z). Group size was binned into the following categories: 1-4 individuals, 5-9, 10-24, 25-49, 50-99, 100+. All records were seasonally categorized as occurring in spring (Mar-May), summer (Jun-Aug), fall (Sep-Nov), and winter (Dec-Feb). The mean latitude and longitude values of records in a given quadrant were applied to records in that quadrant where location data were missing. Missing latitude and longitude data in a given quadrant were replaced with the mean latitude and longitude values of records in that quadrant.
+Sighting and stranding records include the date, latitude, longitude, survey quadrant location, numerous reporting sources, and observation condition (dead or alive). Sighting records additionally contain an estimated number of individuals included in the sighting (*i.e*, group size). Group size was binned into the following categories: 1-4 individuals, 5-9, 10-24, 25-49, 50-99, 100+. Record source (*i.e.*, reporting entity) was grouped into "trained observers" (including X and Y) and "other public sources" (including X, Y, Z). All records were seasonally categorized as occurring in spring (Mar-May), summer (Jun-Aug), fall (Sep-Nov), and winter (Dec-Feb). Missing latitude and longitude data in a given quadrant were replaced with the mean values of records in that quadrant.
 
-Statistical analyses - To examine temporal changes in the number of sightings and strandings over the study period, negative binomial generalized linear models (GLM) were examined with year as the predictor and the number of records as the response. Quadrant and reporting source were also examined as possible predictors to examine data consistency over time.
+Statistical analyses - To examine temporal changes in the number of sightings and strandings over the study period, negative binomial generalized linear models (GLM) were examined with year as the predictor and the number of records as the response. Quadrant and reporting source were also examined as possible predictors to examine data consistency over time (whether records were increasing or decreasing in one area or another, or from one reporting source or another).
  
-Kernel density maps were created using the statdensity function in R and depict sighting and stranding record clusters by season and reporting source. Maps depicting the total number of records and mean sighting group size per quadrant were created using the ggplot2 function in R. 
+Kernel density maps were created using the statdensity function in R and depict sighting and stranding clusters by season and reporting source. Maps depicting the total number of records and mean sighting group size per quadrant were created using the ggplot2 function in R. 
 
 *Results*  
-From 1976 to 2014, there were a total of `r HP_data %>% filter(Record_Type == "Stranding") %>% summarize(n_distinct(RecordID))` harbor porpoise strandings and `r HP_data %>% filter(Record_Type == "Sighting") %>% summarize(n_distinct(RecordID))` sightings for a combined total of `r n_distinct(HP_data$RecordID)` records reported from `r HP_data %>% summarize(n_distinct(Quadrant))` unique survey quadrants. Trained stranding responders accounted for `r round(overall_counts[overall_counts$Record_Type == 'Stranding', 'Trained_Observer']/(HP_data %>% filter(Record_Type == "Stranding") %>% summarize(n_distinct(RecordID))), 2)*100`% of stranding records, and likewise accounted for `r round(overall_counts[overall_counts$Record_Type == 'Sighting', 'Trained_Observer']/(HP_data %>% filter(Record_Type == "Sighting") %>% summarize(n_distinct(RecordID))), 2)*100`% of sightings records, with the remainder being reported by the public. Over the study period, the mean group size of sightings was `r round(mean(HP_data[HP_data$Record_Type == 'Sighting', "Count"], na.rm = T), 1)` individuals. Smaller group sizes were more common, with `r HP_data %>% filter(Record_Type == 'Sighting' & Count < 5) %>% summarize(n_distinct(RecordID))` records containing less than five individuals and `r HP_data %>% filter(Record_Type == 'Sighting' & Count > 49) %>% summarize(n_distinct(RecordID))` records containing more than 50 individuals (Table). Mean group size of sightings made by trained observers was `r round(HP_data %>% filter(Record_Type == 'Sighting' & Reliable_Source == 'Trained_Observer') %>% summarize(mean(Count, na.rm = T)), 1)` individuals, compared to `r round(HP_data %>% filter(Record_Type == 'Sighting' & Reliable_Source != 'Trained_Observer') %>% summarize(mean(Count, na.rm = T)), 1)` group size of sightings reported from the public.  
+From 1976 to 2014, there were a total of `r HP_data %>% filter(Record_Type == "Stranding") %>% summarize(n_distinct(RecordID))` harbor porpoise strandings and `r HP_data %>% filter(Record_Type == "Sighting") %>% summarize(n_distinct(RecordID))` sightings for a combined total of `r n_distinct(HP_data$RecordID)` records reported from `r HP_data %>% summarize(n_distinct(Quadrant))` unique survey quadrants. Trained observers or stranding responders accounted for `r round(overall_counts[overall_counts$Record_Type == 'Stranding', 'Trained_Observer']/(HP_data %>% filter(Record_Type == "Stranding") %>% summarize(n_distinct(RecordID))), 2)*100`% of stranding records, and likewise accounted for `r round(overall_counts[overall_counts$Record_Type == 'Sighting', 'Trained_Observer']/(HP_data %>% filter(Record_Type == "Sighting") %>% summarize(n_distinct(RecordID))), 2)*100`% of sightings records, with the remainder being reported by the public. Over the study period, the mean group size of sightings was `r round(mean(HP_data[HP_data$Record_Type == 'Sighting', "Count"], na.rm = T), 1)` individuals. Smaller group sizes were more common, with `r HP_data %>% filter(Record_Type == 'Sighting' & Count < 5) %>% summarize(n_distinct(RecordID))` records containing less than five individuals and `r HP_data %>% filter(Record_Type == 'Sighting' & Count > 49) %>% summarize(n_distinct(RecordID))` records containing more than 50 individuals (Table). Mean group size of sightings made by trained observers was `r round(HP_data %>% filter(Record_Type == 'Sighting' & Reliable_Source == 'Trained_Observer') %>% summarize(mean(Count, na.rm = T)), 1)` individuals, compared to `r round(HP_data %>% filter(Record_Type == 'Sighting' & Reliable_Source != 'Trained_Observer') %>% summarize(mean(Count, na.rm = T)), 1)` group size of sightings reported from the public. The maximum group count size of records made by trained observers was `r HP_data %>% filter(Record_Type == 'Sighting' & Reliable_Source == 'Trained_Observer') %>% summarize(max(Count, na.rm = T))` individuals, compared to `r HP_data %>% filter(Record_Type == 'Sighting' & Reliable_Source != 'Trained_Observer') %>% summarize(max(Count, na.rm = T))`
 
 Temporal patterns - The number of sightings has not significantly increased over time (p > 0.05; `r figs("yr_type_source", display = 'cite')`), though group size was a significant predictor of reported sightings (y = -0.02x, t = -2.17, p < 0.05), suggesting a slight decrease in the number of individuals per sighting over time. 
 
@@ -645,9 +578,106 @@ Seasonal patterns – Sightings are significantly higher in the summer (`r round
 
 Spatial patterns – Sightings were distributed across `r quad_sight_counts %>% summarize(n_distinct(Quadrant))` quadrants. The total number of sightings was highest on the western side of San Juan Island (quadrant 181, 48.504N -123.134W, `r quad_sight_counts[quad_sight_counts$Quadrant == '181', 'cnt']` reports) and the northeastern tip of San Juan Island (quadrant 167, 48.624N, -123.076W, `r quad_sight_counts[quad_sight_counts$Quadrant == '167', 'cnt']` reports; and quadrant 192, 48.609N, -123.030W, `r quad_sight_counts[quad_sight_counts$Quadrant == '192', 'cnt']` reports) (`r figs("map_records_size", display = 'cite')`). Only `r round(quad_sight_counts %>% filter(cnt > 9) %>% summarize(n_distinct(Quadrant))/(quad_sight_counts %>% summarize(n_distinct(Quadrant))), 2)*100`% of quadrants had 10 or more sightings over the study period. Quadrants with the larger reported mean sighting group size do not overlap with quadrants with the largest number of records, as some quadrants may have had one very large sighting while others have numerous sightings of less than five individuals (`r figs("map_group_size", display = 'cite')`). 
 
-Strandings were distributed across `r quad_strands_counts %>% summarize(n_distinct(Quadrant))` quadrants. The total number of strandings was highest in waters between San Juan and Lopez Islands (quadrant 187, 48.506N, -122.964W, `r quad_strands_counts[quad_strands_counts$Quadrant == '187', 'cnt']` reports; and quadrant 186, 48.448N, -122.942W, `r quad_strands_counts[quad_strands_counts$Quadrant == '186', 'cnt']` reports), and the western side of San Juan Island (quadrant 181, 48.504N -123.134W, `r quad_strands_counts[quad_strands_counts$Quadrant == '181', 'cnt']` reports). Only `r round(quad_strands_counts %>% filter(cnt > 5) %>% summarize(n_distinct(Quadrant))/(quad_strands_counts %>% summarize(n_distinct(Quadrant))), 2)*100`% of quadrants more than five strandings over the study period.
+Strandings were distributed across `r quad_strands_counts %>% summarize(n_distinct(Quadrant))` quadrants. The total number of strandings was highest in waters between San Juan and Lopez Islands (quadrant 187, 48.506N, -122.964W, `r quad_strands_counts[quad_strands_counts$Quadrant == '187', 'cnt']` reports; and quadrant 186, 48.448N, -122.942W, `r quad_strands_counts[quad_strands_counts$Quadrant == '186', 'cnt']` reports), and the western side of San Juan Island (quadrant 181, 48.504N -123.134W, `r quad_strands_counts[quad_strands_counts$Quadrant == '181', 'cnt']` reports). Only `r round(quad_strands_counts %>% filter(cnt > 5) %>% summarize(n_distinct(Quadrant))/(quad_strands_counts %>% summarize(n_distinct(Quadrant))), 2)*100`% of quadrants had more than five strandings over the study period.
 
-The distribution of sightings and strandings is nearly identical from both trained observers and other public reporting sources, with primary clusters centered in the San Juan Islands and an additional cluster near Whidbey Island reported from trained observers (`r figs("map_source_zoom", display = 'cite')`). Sightings clusters were similar across seasons with the exception of winter, where there were fewer total records and an additional cluster around Whidbey Island (`r figs("map_source_zoom", display = 'cite')`), possibly due to the presence of a dedicated survey or other research project. Stranding records were most broadly distributed in the fall and most constricted in winter, though clusters all overlapped in San Juan Island waters (`r figs("map_source_zoom", display = 'cite')`). The spatial distribution of sightings and strandings did not significantly change over time, as suggested above. 
+The distribution of sightings and strandings is nearly identical from both trained observers and other public reporting sources, with primary clusters centered in the San Juan Islands and an additional cluster near Whidbey Island reported from trained observers (`r figs("map_source_zoom", display = 'cite')`). Sightings clusters were similar across seasons with the exception of winter, where there were fewer total records and an additional cluster around Whidbey Island (`r figs("map_source_zoom", display = 'cite')`), possibly due to the presence of a dedicated survey or other research project. Stranding records were most broadly distributed in the fall and most constricted in winter, though clusters all overlapped in San Juan Island waters (`r figs("map_source_zoom", display = 'cite')`). The spatial distribution of sightings and strandings did not significantly change over time, as suggested above.
+
+*Discussion*  
+
+Harbor porpoise sightings and strandings records in the Salish Sea from 1976 to 2014 were concentrated around the San Juan Islands, the majority of which were sightings. Annual sightings remained constant over time while strandings increased over the study period. The number of sightings was significantly higher in the summer while strandings were higher during spring. The distribution of sightings was consistent across reporting sources and remained constant over time and throughout the seasons of the year. 
+
+Over the study period, the mean sighting group size was `r round(mean(HP_data[HP_data$Record_Type == 'Sighting', "Count"], na.rm = T), 1)` individuals. The mean and maximum group sizes in this study was higher than those estimated by others after correcting for detectability and survey effort, ranging from 1.8 to 2.5 individuals per group and a maximum group size of 40 (Calambokidis et al., 2004; Siebert et al., 2006; Koshure, 2012). The highest number of sightings records in our study occurred June through August, while others have found higher encounter rates or higher relative abundance August through October around Vancounter Island, though most studies consistently report lowest density and abundance during winter (Keple, 2002; Olesiuk et al., 2002). [Insert other seasonal results comparisons?]. 
+
+Spatial modeling: 
+- Buckland et al. 2004 (line transect + animal rel to env factors + detection probability)  
+- Data could be used in more complex habitat spatial prediction modeling (Hedley et al., 1999; Hedley & Buckland, 2004; Redfern et al., 2006; Gomez de Segura et al., 2007)  
+- Williams et al 2006 - can further use information to understand WHY animals are there (spatial modeling)
+
+Williams et al 2011 - framework for variance estimator
+
+On opportunistic data:  
+- Success of opportunistic somewhat has to do with behavior of species (Jung suggest non-distinct/unremarkable HP behavior reason why only 9% sightings in opp = hp)
+
+- Often matched up with survey-based; lots of examples - striped dolphins in mediterranean (Gomez de Segura et al 2007)
+
+Importance/Future:  
+- Existing data from line transect surveys around the world is patchy - majority of effort concentrated in relatively small areas - need to combine what we have to scale up to broader spatial scales (Kaschner et al., 2012).  
+ - Could also be used to gather useful information when monitoring other impacts, so as to reduce/consolidate impacts to animals and research effort (Koshure, 2012).  
+- Predictive spatial habitat use models used to project estimated impacts of anthropogenic activities.  
+
+
+*References* 
+
+Aragones, L.V., Jefferson, T.A., and Marsh, H. 1997. Marine mammal survey techniques applicable in developing countries. Asian Marine Biology 14: 15-39.
+
+Borchers DL, Buckland ST, Zucchini W. 2002. Estimating Animal Abundance. Springer: London, UK
+
+Brereton, T., Williams, A.D. & Williams, R. (2000) A low-cost method to determine bathypelagic and seasonal occupancy of fin whale *Balaenoptera physalus* in the Bay of Biscay, In: European Research on Cetaceans – 14 (Ed. by P.G.H. Evans), pp. 14–18. European Cetacean Society, Rome, Italy.
+
+Buckland, S.T., Cattanach, K.L., & Anganuzzi, A.A. 1992. Estimating trends in abundance of dolphins associated with tuna in the eastern tropical Pacific Ocean, using sightings data on commercial tuna vessels. Fishery Bulletin 90: 1-12.
+
+Buckland, S.T., Anderson, D.R., Burnham, K.P., Laake, J.L., Borchers, D.L., & Thomas, L. 2001. Introduction to distance sampling: estimating abundance of biological populations. Oxford, UK: Oxford University Press.
+
+Calambokidis, J., J.L. Laake, & Osmek S.D. 1997. Aerial surveys for marine mammals in Washington and British Columbia inside waters. Final report to the National Marine Mammal Laboratory, Seattle, WA 98115. 
+
+Calambokidis, J., Steiger, G.H., Ellifrit, D.K., Troutman, B., & Bowlby, C.E. 2004. Distribution and abundance of humpback whales and other marine mammals off the northern Washington coast. Fish. Bull. 102:563–580.
+
+Cañadas A, Sagarminaga R, De Stephanis R, Urquiola E, Hammond PS. 2005. Habitat preference modelling as a conservation tool: proposals for marine protected areas for cetaceans in southern Spanish waters. Aquat Conserv 15: 495–521.
+
+Carretta, J., Oleson, E., Baker, J., Weller, D., Lang, A., Forney, K.,... & Brownell, R. 2016. U.S. Pacific Marine Mammal Stock Assessments: 2015. NOAA-TM-NMFS-SWFSC-561, U.S.Dept of Commerce, doi:10.7289/V5/TM-SWFSC-561.
+
+Dawson, S., Wade, P., Slooten, E. and Barlow, J. 2008. Design and field methods for sighting surveys of cetaceans in coastal and riverine habitats. Publications, Agencies and Staff of the U.S. Department of Commerce. Paper 255. http://digitalcommons.unl.edu/usdeptcommercepub/255.
+
+Evans, P.G. and Hammond, P.S. 2004. Monitoring cetaceans in European waters. Mammal Review 34(1), 131 – 156.
+
+Gomez de Segura, A.G, Hammond, P.S., Canadas, A., & Raga, J.A. 2007. Comparing cetacean abundance estimates derived from spatial models and design-based line transect methods. Marine Ecology Progress Series 329: 289-299.
+
+Hall, A. 2004. Seasonal abundance, distribution and prey species of harbour porpoise (*Phocoena phocoena*) in southern Vancouver Island waters. Unpublished Master's thesis, University of British Columbia. Vancouver, British Columbia, Canada. 
+
+Hedley, S.L., Buckland, S.T., & Borchers, D.L. 1999. Spatial modelling from line transect data: Journal of Cetacean Research and Management 1(3): 255-264.
+
+Hedley, S.L. & Buckland, S.T. 2004. Spatial models for line transect sampling. Journal of Agricultural, Biological, and Environmental Statistics, 9(2): 181–199. DOI: 10.1198/1085711043578.
+
+Jung, J.L., Stephan, E., Louis, M., Alfonsi, E., Liret, C., Carpentier, F.G., & Hassani, S. 2009. Harbour porpoises (*Phocoena phocoena*) in north-western France: aerial survey, opportunistic sightings and strandings monitoring. Journal of the Marine Biological Association of the United Kingdom, 89(5): 1045-1050.
+
+Kaschner K, Quick NJ, Jewell R, Williams R, Harris CM. 2012. Global Coverage of Cetacean Line-Transect Surveys: Status Quo, Data Gaps and Future Challenges. PLoS ONE 7(9): e44075. DOI: 10.1371/journal.pone.0044075
+
+Keple, A.R. 2002. Seasonal abundance and distribution of marine mammals in the Southern Strait of Georgia, British Columbia.  Unpublished Master's thesis, University of British Columbia. Vancouver, British Columbia, Canada.  
+
+Koshure, N. 2012. Estimating cetacean abundanc and distribution around Vancouver Island, B.C., using data collected from an opportunistic platform. Unpublished Master's thesis, Simon Fraser University, Canada.
+
+Leaper, R., Fairbairns, R., Gordon, J., Hiby, A., Lovell, P. and Papastavrou, V. (1997). Analysis of data collected from a whalewatching operation to assess relative abundance and distribution of the minke whale (*Balaenoptera acutorostrata*) around the Isle of Mull, Scotland. Reports of the International Whaling Commission 47: 505-511.
+
+Lennert-Cody, C.E., Maunder, M.N., Fiedler, P.C., Minami, M., Gerrodette, T., Rusin, J.,... & Buckland, S.T. 2016. Purse-seine vessels as platforms for monitoring the population status of dolphin species in the eastern tropical Pacific Ocean. Fisheries Research 178: 101-113. 
+
+Marques, F.F.C. (2001). Estimating Wildlife Distribution and Abundance from Line Transect Surveys Conducted from Platforms of Opportunity. Unpublished Ph.D. thesis, University of St. Andrews, Scotland.
+
+<!-- Mikkelsen L, Rigét FF, Kyhn LA, Sveegaard S, Dietz R, Tougaard J, et al. (2016) Comparing Distribution of Harbour Porpoises (*Phocoena phocoena*) Derived from Satellite Telemetry and Passive Acoustic Monitoring. PLoS ONE 11(7): e0158788. doi:10.1371/journal.pone.0158788. -->
+
+Olesiuk, P.F.,  L.M. Nichol,  M.J. Sowden, and J.K.B. Ford. 2002. Effect of the Sound Generated by an Acoustic Harassment Device on the Relative Abundance and Distribution of Harbor Porpoises  (*Phocoena  phocoena*)  in  Retreat  Passage,  British  Columbia. Marine Mammal Science 18:843-862. 
+
+Peschko, V., Ronnenberg, K., Siebert, U., & Gilles, A. 2016. Trends of harbour porpoise (*Phocoena phocoena*) density in the southern North Sea. Ecological Indicators 60: 174–183.
+
+Redfern et al. 2006. Techniques for cetacean– habitat modeling. Marine Ecology Progress Series 310: 271-295.
+
+Siebert U., Gilles A., Lucke K., Ludwig M., Benke H., Kock K.H. and Scheidat M. (2006). A decade of harbour porpoise occurrence in German waters – analyses of aerial surveys, incidental sightings and strandings. Journal of Sea Research 56, 65–80.
+
+Silva, et. al. 2003. Occurrence and distribution of cetaceans in the waters around the Azores (Portugal), Summer and Autumn 1999–2000. Aquatic Mammals, 29.1: 77–83.
+
+Thomas, L., Williams, R., & Sandilands, D. 2007. Designing line transect surveys for complex survey regions. Journal of Cetacean Resource Management 9(1): 1-13.
+
+Williams, R. 2003. Cetacean studies using platforms of opportunity. Unpublished Doctoral thesis, University of St. Andrews. St. Andrews, Scotland.
+
+Williams, R., S. L. Hedley, and P. S. Hammond. 2006. Modeling distribution and abundance of Antarctic baleen whales using ships of opportunity. Ecology and Society 11 (1): 1.
+
+Williams, R., Leaper, R., Zerbini, A.N., & Hammond, P.S. 2007. Methods for investigating measurement error in cetacean line-transect surveys. Journal of the Marine Biological Association of the United Kingdom, 87: 313–320.
+
+Williams, R. & Thomas, L. 2007. Distribution and abundance of marine mammals in coastal waters of British Columbia, Canada. Journal of Cetacean Resource Management 9(1): 15-28.
+
+Williams, R. & Thomas, L. 2009. Cost-effective abundance estimation of rare animals: Testing performance of small-boat surveys for killer whales in British Columbia. Biological Conservation 142(7): 1542-1547.
+
+Williams, R., Hedley, S.L., Branch, T.A., Bravington, M.V., Zerbini, A.N. and Findlay, K.P. 2011. Chilean Blue Whales as a Case Study to Illustrate Methods to Estimate Abundance and Evaluate Conservation Status of Rare Species. Conservation Biology, 25: 526–535. doi:10.1111/j.1523-1739.2011.01656.x
+
 
 *Figures*    
 
